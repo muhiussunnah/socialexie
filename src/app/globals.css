@@ -1,0 +1,282 @@
+@import "tailwindcss";
+
+/* Theme is class-driven so the toggle can override the OS preference. */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* ------------------------------------------------------------------
+   Socialexie — "Mission Control"
+   Instrument-grade chrome. Amber = signal, teal = live.
+   Channel colour belongs to the platform, never to the chrome.
+   ------------------------------------------------------------------ */
+
+:root {
+  /* Surfaces — warm paper in light, cool slate in dark */
+  --bg: #faf9f7;
+  --bg-sub: #f2f0ec;
+  --surface: #ffffff;
+  --surface-2: #f7f5f2;
+  --surface-3: #efece7;
+  --overlay: rgba(14, 16, 20, 0.42);
+
+  /* Hairlines */
+  --line: #e4e0d9;
+  --line-strong: #d2ccc2;
+
+  /* Type */
+  --fg: #14161a;
+  --fg-muted: #6b6760;
+  --fg-subtle: #918b82;
+  --fg-invert: #faf9f7;
+
+  /* Signal (primary accent) */
+  --signal: #b8730a;
+  --signal-fg: #ffffff;
+  --signal-soft: #fdf1dc;
+  --signal-line: #f0d5a4;
+
+  /* Live (secondary) */
+  --live: #0a7f70;
+  --live-soft: #dff3ef;
+
+  /* Semantic */
+  --ok: #17795a;
+  --ok-soft: #dff1e8;
+  --warn: #9a6410;
+  --warn-soft: #fcefd8;
+  --danger: #b3261e;
+  --danger-soft: #fce8e6;
+  --info: #1d5fa8;
+  --info-soft: #e3eefb;
+
+  /* Focus */
+  --ring: #b8730a;
+
+  /* Elevation — tuned per theme, not shared */
+  --shadow-1: 0 1px 2px rgba(20, 22, 26, 0.05);
+  --shadow-2: 0 1px 2px rgba(20, 22, 26, 0.04), 0 8px 24px rgba(20, 22, 26, 0.06);
+  --shadow-3: 0 2px 4px rgba(20, 22, 26, 0.05), 0 18px 48px rgba(20, 22, 26, 0.1);
+  --shadow-glow: 0 0 0 1px var(--signal-line), 0 12px 40px rgba(184, 115, 10, 0.14);
+}
+
+.dark {
+  --bg: #0a0c10;
+  --bg-sub: #07080b;
+  --surface: #111419;
+  --surface-2: #171b22;
+  --surface-3: #1e232b;
+  --overlay: rgba(4, 5, 7, 0.68);
+
+  --line: #232831;
+  --line-strong: #333a45;
+
+  --fg: #e9ecf1;
+  --fg-muted: #939bab;
+  --fg-subtle: #6b7383;
+  --fg-invert: #0a0c10;
+
+  --signal: #ffb020;
+  --signal-fg: #1a1204;
+  --signal-soft: #2a1f08;
+  --signal-line: #4a360d;
+
+  --live: #23c8ae;
+  --live-soft: #0d2b28;
+
+  --ok: #3ecf8e;
+  --ok-soft: #0e2a1f;
+  --warn: #ffb020;
+  --warn-soft: #2a1f08;
+  --danger: #ff6b61;
+  --danger-soft: #2e1512;
+  --info: #63a4ff;
+  --info-soft: #101f33;
+
+  --ring: #ffb020;
+
+  --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.4);
+  --shadow-2: 0 1px 2px rgba(0, 0, 0, 0.36), 0 10px 30px rgba(0, 0, 0, 0.4);
+  --shadow-3: 0 2px 6px rgba(0, 0, 0, 0.4), 0 24px 60px rgba(0, 0, 0, 0.55);
+  --shadow-glow: 0 0 0 1px var(--signal-line), 0 14px 44px rgba(255, 176, 32, 0.18);
+}
+
+@theme inline {
+  --color-bg: var(--bg);
+  --color-bg-sub: var(--bg-sub);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-surface-3: var(--surface-3);
+  --color-overlay: var(--overlay);
+
+  --color-line: var(--line);
+  --color-line-strong: var(--line-strong);
+
+  --color-fg: var(--fg);
+  --color-muted: var(--fg-muted);
+  --color-subtle: var(--fg-subtle);
+  --color-invert: var(--fg-invert);
+
+  --color-signal: var(--signal);
+  --color-signal-fg: var(--signal-fg);
+  --color-signal-soft: var(--signal-soft);
+  --color-signal-line: var(--signal-line);
+
+  --color-live: var(--live);
+  --color-live-soft: var(--live-soft);
+
+  --color-ok: var(--ok);
+  --color-ok-soft: var(--ok-soft);
+  --color-warn: var(--warn);
+  --color-warn-soft: var(--warn-soft);
+  --color-danger: var(--danger);
+  --color-danger-soft: var(--danger-soft);
+  --color-info: var(--info);
+  --color-info-soft: var(--info-soft);
+
+  /* Channel identity — colour encodes which network, never decoration */
+  --color-ch-facebook: #1877f2;
+  --color-ch-instagram: #e1306c;
+  --color-ch-tiktok: #00d1c1;
+  --color-ch-youtube: #ff0033;
+  --color-ch-x: #6d7580;
+  --color-ch-linkedin: #0a66c2;
+  --color-ch-pinterest: #e60023;
+  --color-ch-threads: #9b6dff;
+
+  --font-display: var(--font-archivo), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-geist-sans), ui-sans-serif, system-ui, sans-serif;
+  --font-mono: var(--font-geist-mono), ui-monospace, monospace;
+
+  --radius-card: 14px;
+  --radius-panel: 18px;
+
+  --shadow-e1: var(--shadow-1);
+  --shadow-e2: var(--shadow-2);
+  --shadow-e3: var(--shadow-3);
+  --shadow-signal: var(--shadow-glow);
+
+  --animate-pulse-live: pulse-live 2.4s ease-in-out infinite;
+  --animate-rise: rise 0.5s cubic-bezier(0.16, 1, 0.3, 1) both;
+  --animate-sweep: sweep 2.6s linear infinite;
+}
+
+@keyframes pulse-live {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.45;
+    transform: scale(0.82);
+  }
+}
+
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(14px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes sweep {
+  from {
+    transform: translateX(-100%);
+  }
+  to {
+    transform: translateX(100%);
+  }
+}
+
+@layer base {
+  * {
+    border-color: var(--line);
+  }
+
+  html {
+    color-scheme: light;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  .dark html,
+  html.dark {
+    color-scheme: dark;
+  }
+
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: var(--font-sans);
+    font-feature-settings: "cv11", "ss01";
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    font-family: var(--font-display);
+    text-wrap: balance;
+    letter-spacing: -0.022em;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* One consistent focus treatment across the whole product */
+  :focus-visible {
+    outline: 2px solid var(--ring);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  ::selection {
+    background: var(--signal);
+    color: var(--signal-fg);
+  }
+
+  /* Numbers in tables and metrics must line up */
+  .tabular {
+    font-variant-numeric: tabular-nums;
+  }
+
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--line-strong);
+    border-radius: 999px;
+    border: 3px solid var(--bg);
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--fg-subtle);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* Faint engineering grid used behind hero / empty states */
+.grid-field {
+  background-image:
+    linear-gradient(to right, var(--line) 1px, transparent 1px),
+    linear-gradient(to bottom, var(--line) 1px, transparent 1px);
+  background-size: 56px 56px;
+  mask-image: radial-gradient(ellipse 80% 60% at 50% 0%, #000 20%, transparent 75%);
+}

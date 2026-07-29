@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Socialexie">
+  <rect width="512" height="512" fill="#0a0c10"/>
+  <!-- Mark scaled to 0.8 and re-centred so it clears the maskable safe zone. -->
+  <g transform="translate(256 256) scale(0.8) translate(-250 -256)">
+    <circle cx="144" cy="256" r="42" fill="#FFB020"/>
+    <g fill="none" stroke-linecap="round">
+      <path d="M212.2 182.9 A100 100 0 0 1 212.2 329.1" stroke="#FFB020" stroke-width="32"/>
+      <path d="M258.6 133.1 A168 168 0 0 1 258.6 378.9" stroke="#FFB020" stroke-width="34" opacity="0.72"/>
+      <path d="M304.9 83.4 A236 236 0 0 1 304.9 428.6" stroke="#23C8AE" stroke-width="36"/>
+    </g>
+  </g>
+</svg>

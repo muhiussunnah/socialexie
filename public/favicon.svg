@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="Socialexie">
+  <!-- Two arcs instead of three: at 16px the third one closes up and reads as noise. -->
+  <rect width="512" height="512" rx="112" fill="#0a0c10"/>
+  <circle cx="160" cy="256" r="52" fill="#FFB020"/>
+  <g fill="none" stroke-linecap="round">
+    <path d="M244.3 162.4 A126 126 0 0 1 244.3 349.6" stroke="#FFB020" stroke-width="46"/>
+    <path d="M307.2 92.5 A220 220 0 0 1 307.2 419.5" stroke="#23C8AE" stroke-width="52"/>
+  </g>
+</svg>
