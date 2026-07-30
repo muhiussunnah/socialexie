@@ -96,7 +96,8 @@ describe("isAdminEmail", () => {
 describe("site metadata", () => {
   it("carries the values the layout and OpenGraph tags read", () => {
     expect(site.name).toBe("Socialexie");
-    expect(site.domain).toBe("socialexie.app");
+    // The registered domain drops the final "e" of the brand name.
+    expect(site.domain).toBe("socialexi.app");
     expect(site.description.length).toBeGreaterThan(50);
   });
 
