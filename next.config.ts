@@ -63,14 +63,27 @@ const nextConfig: NextConfig = {
   },
 
   async redirects() {
+    // One canonical host. Keeping www as a permanent redirect rather than a
+    // second live origin means cookies, OAuth callbacks and analytics only ever
+    // see one domain.
+    //
+    // Two rules on purpose: a single `/:path*` leaves the placeholder
+    // unsubstituted when the path is empty, sending "/" to the literal
+    // "/:path*". `/:path+` requires at least one segment, so the bare root gets
+    // its own rule.
+    const fromWww = [{ type: "host" as const, value: "www.socialexi.app" }];
+
     return [
       {
-        // One canonical host. Keeping www as a permanent redirect rather than a
-        // second live origin means cookies, OAuth callbacks and analytics only
-        // ever see one domain.
-        source: "/:path*",
-        has: [{ type: "host", value: "www.socialexi.app" }],
-        destination: "https://socialexi.app/:path*",
+        source: "/",
+        has: fromWww,
+        destination: "https://socialexi.app/",
+        permanent: true,
+      },
+      {
+        source: "/:path+",
+        has: fromWww,
+        destination: "https://socialexi.app/:path+",
         permanent: true,
       },
     ];
