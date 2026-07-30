@@ -21,12 +21,10 @@
   "workers_dev": true,
   // Both hostnames hit the Worker; www is then 301'd to the apex by the
   // redirect in next.config.ts so there is a single canonical origin.
-  // Re-enable once the zone finishes activating — attaching a custom domain to
-  // a pending zone fails the whole trigger deploy.
-  // "routes": [
-  //   { "pattern": "socialexi.app", "custom_domain": true },
-  //   { "pattern": "www.socialexi.app", "custom_domain": true }
-  // ],
+  "routes": [
+    { "pattern": "socialexi.app", "custom_domain": true },
+    { "pattern": "www.socialexi.app", "custom_domain": true }
+  ],
   "observability": {
     "enabled": true
   }
