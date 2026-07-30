@@ -39,6 +39,11 @@ yarn-error.log*
 .vscode/
 .idea/
 
+# cloudflare
+/.open-next/
+/.wrangler/
+cloudflare-env.d.ts
+
 # vercel
 .vercel
 

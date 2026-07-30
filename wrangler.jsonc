@@ -1,0 +1,17 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "socialexie",
+  "account_id": "fe7c79248e322cbc0f547cf82cc06027",
+  "main": ".open-next/worker.js",
+  "compatibility_date": "2025-04-01",
+  // nodejs_compat is required by the Next.js adapter; the strict-fetch flag
+  // stops Workers from short-circuiting same-zone requests back into itself.
+  "compatibility_flags": ["nodejs_compat", "global_fetch_strictly_public"],
+  "assets": {
+    "directory": ".open-next/assets",
+    "binding": "ASSETS"
+  },
+  "observability": {
+    "enabled": true
+  }
+}

@@ -1,7 +1,8 @@
 import { Info } from "lucide-react";
+import { SessionKeeper } from "@/components/auth/session-keeper";
 import { Sidebar } from "@/components/app/sidebar";
 import { Topbar } from "@/components/app/topbar";
-import { getSession } from "@/lib/auth";
+import { requireSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { demoMetrics, demoWorkspace } from "@/lib/demo";
 
@@ -11,16 +12,21 @@ export default async function AppLayout({
   children: React.ReactNode;
 }) {
   const configured = isSupabaseConfigured();
-  const session = configured ? await getSession() : null;
+
+  // This layout is the authentication boundary for the whole product area.
+  // There is no proxy in front of it on Cloudflare, so the redirect has to
+  // happen here rather than at the network edge.
+  const session = await requireSession("/dashboard");
 
   const workspaceName = demoWorkspace.name;
   const plan = demoWorkspace.plan;
-  const email = session?.email ?? "demo@socialexie.app";
+  const email = session.email;
 
   return (
     <div className="flex min-h-dvh">
+      <SessionKeeper />
       <Sidebar
-        isAdmin={session?.isAdmin ?? true}
+        isAdmin={session.isAdmin}
         usage={{
           label: "AI images",
           used: demoMetrics.imageCredits.used,
