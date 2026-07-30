@@ -62,6 +62,20 @@ const nextConfig: NextConfig = {
     formats: ["image/avif", "image/webp"],
   },
 
+  async redirects() {
+    return [
+      {
+        // One canonical host. Keeping www as a permanent redirect rather than a
+        // second live origin means cookies, OAuth callbacks and analytics only
+        // ever see one domain.
+        source: "/:path*",
+        has: [{ type: "host", value: "www.socialexi.app" }],
+        destination: "https://socialexi.app/:path*",
+        permanent: true,
+      },
+    ];
+  },
+
   async headers() {
     return [
       {

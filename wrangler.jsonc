@@ -11,6 +11,22 @@
     "directory": ".open-next/assets",
     "binding": "ASSETS"
   },
+  // Non-secret runtime config. Secrets (SUPABASE_SERVICE_ROLE_KEY, provider
+  // API keys) are set with `wrangler secret put` and never live in this file.
+  "vars": {
+    "ADMIN_EMAILS": "itsinjamul@gmail.com"
+  },
+  // Keep the workers.dev hostname live alongside the custom domain, so the app
+  // stays reachable if a route ever fails to attach.
+  "workers_dev": true,
+  // Both hostnames hit the Worker; www is then 301'd to the apex by the
+  // redirect in next.config.ts so there is a single canonical origin.
+  // Re-enable once the zone finishes activating — attaching a custom domain to
+  // a pending zone fails the whole trigger deploy.
+  // "routes": [
+  //   { "pattern": "socialexi.app", "custom_domain": true },
+  //   { "pattern": "www.socialexi.app", "custom_domain": true }
+  // ],
   "observability": {
     "enabled": true
   }

@@ -1,7 +1,7 @@
 export const site = {
   name: "Socialexie",
-  domain: "socialexie.app",
-  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://socialexie.app",
+  domain: "socialexi.app",
+  url: process.env.NEXT_PUBLIC_SITE_URL ?? "https://socialexi.app",
   tagline: "The control room for social growth.",
   description:
     "Plan, generate and publish across every network from one desk. Multi-platform scheduling, an AI image studio, evergreen recycling and compliant comment-to-DM automation.",
