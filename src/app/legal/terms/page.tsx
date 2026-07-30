@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import { DraftNotice } from "@/components/legal-draft-notice";
+import { LegalPageSchema } from "@/components/legal-page-schema";
 
 export const metadata: Metadata = {
   title: "Terms",
   description: "The agreement between you and Socialexie.",
+  alternates: { canonical: "/legal/terms" },
 };
 
 export default function TermsPage() {
   return (
     <>
+      <LegalPageSchema path="/legal/terms" name="Terms" />
       <h1>Terms of service</h1>
       <p>
         The short version: use it for your own accounts, follow the networks&apos;

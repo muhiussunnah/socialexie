@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
 import { DraftNotice } from "@/components/legal-draft-notice";
+import { LegalPageSchema } from "@/components/legal-page-schema";
 
 export const metadata: Metadata = {
   title: "Privacy",
   description: "What Socialexie collects, why, and what it never does.",
+  alternates: { canonical: "/legal/privacy" },
 };
 
 export default function PrivacyPage() {
   return (
     <>
+      <LegalPageSchema path="/legal/privacy" name="Privacy" />
       <h1>Privacy</h1>
       <p>
         Plain language, describing what the product actually does rather than

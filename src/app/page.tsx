@@ -1,5 +1,9 @@
+import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight } from "lucide-react";
+import { JsonLd } from "@/components/json-ld";
+import { buildGraph } from "@/lib/schema";
+import { PUBLIC_ROUTES } from "@/lib/public-routes";
 import { MarketingHeader } from "@/components/marketing/header";
 import { MarketingFooter } from "@/components/marketing/footer";
 import { Hero } from "@/components/marketing/hero";
@@ -12,11 +16,26 @@ import { Pricing } from "@/components/marketing/pricing";
 import { Faq } from "@/components/marketing/faq";
 import { Button } from "@/components/ui/button";
 
+const route = PUBLIC_ROUTES[0];
+
+export const metadata: Metadata = {
+  alternates: { canonical: "/" },
+};
+
 export default function HomePage() {
   return (
     <>
+      <JsonLd
+        data={buildGraph({
+          path: "/",
+          title: route.title,
+          description: route.summary,
+          updated: route.updated,
+          includeApp: true,
+        })}
+      />
       <MarketingHeader />
-      <main>
+      <main id="main">
         <Hero />
         <Features />
         <StudioSection />

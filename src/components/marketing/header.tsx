@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AnnouncementBar } from "@/components/marketing/announcement-bar";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -6,7 +7,11 @@ import { marketingNav } from "@/lib/site";
 
 export function MarketingHeader() {
   return (
-    <header className="sticky top-0 z-50 border-b border-line bg-bg/80 backdrop-blur-xl">
+    <>
+      {/* Outside the sticky element on purpose — the promo scrolls away, the nav
+          stays. */}
+      <AnnouncementBar />
+      <header className="sticky top-0 z-50 border-b border-line bg-bg/80 backdrop-blur-xl">
       <div className="mx-auto flex h-16 w-full max-w-6xl items-center gap-6 px-5">
         <Link href="/" aria-label="Socialexie home">
           <Logo />
@@ -33,7 +38,8 @@ export function MarketingHeader() {
             <Link href="/signup">Start free</Link>
           </Button>
         </div>
-      </div>
-    </header>
+        </div>
+      </header>
+    </>
   );
 }

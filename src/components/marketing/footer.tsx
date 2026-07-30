@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { Logo } from "@/components/brand/logo";
+import { ScrollToTop } from "@/components/scroll-to-top";
+import { SocialShare } from "@/components/social-share";
 import { site } from "@/lib/site";
 
 const COLUMNS = [
@@ -70,6 +72,11 @@ export function MarketingFooter() {
           <span className="font-mono">{site.domain}</span>
         </div>
       </div>
+
+      {/* Floating page chrome — mounted here so every page that uses the
+          marketing footer gets it without repeating itself. */}
+      <SocialShare />
+      <ScrollToTop />
     </footer>
   );
 }

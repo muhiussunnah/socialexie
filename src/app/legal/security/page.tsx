@@ -1,14 +1,17 @@
 import type { Metadata } from "next";
+import { LegalPageSchema } from "@/components/legal-page-schema";
 
 export const metadata: Metadata = {
   title: "Security",
   description:
     "How Socialexie isolates workspace data, stores channel tokens and connects to social networks.",
+  alternates: { canonical: "/legal/security" },
 };
 
 export default function SecurityPage() {
   return (
     <>
+      <LegalPageSchema path="/legal/security" name="Security" />
       <h1>Security</h1>
       <p>
         A publishing tool holds the keys to someone&apos;s audience. This page

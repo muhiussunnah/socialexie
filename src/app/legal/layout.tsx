@@ -9,7 +9,7 @@ export default function LegalLayout({
   return (
     <>
       <MarketingHeader />
-      <main className="mx-auto w-full max-w-2xl px-5 py-16">
+      <main id="main" className="mx-auto w-full max-w-2xl px-5 py-16">
         <article
           className="
             [&_h1]:font-display [&_h1]:text-[32px] [&_h1]:font-extrabold

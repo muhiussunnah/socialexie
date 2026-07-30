@@ -272,6 +272,12 @@
   }
 }
 
+/* Set by the pre-paint script when the announcement was already dismissed, so
+   a returning visitor never sees it render and then vanish. */
+.announce-hidden [data-announce] {
+  display: none;
+}
+
 /* Faint engineering grid used behind hero / empty states */
 .grid-field {
   background-image:
