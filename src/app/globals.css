@@ -331,6 +331,55 @@
     text-wrap: pretty;
   }
 
+  /*
+   * Tailwind v4's Preflight resets buttons to `cursor: default` to match the
+   * native UA style. That is technically correct and practically wrong — people
+   * read the hand as "this does something". Restored for everything that is
+   * actually operable, and explicitly denied to anything disabled.
+   */
+  button,
+  [role="button"],
+  [role="tab"],
+  [role="radio"],
+  [role="switch"],
+  [role="option"],
+  summary,
+  label[for],
+  select,
+  a[href],
+  input[type="checkbox"],
+  input[type="radio"],
+  input[type="submit"],
+  input[type="button"],
+  input[type="reset"],
+  input[type="file"],
+  input[type="color"],
+  input[type="range"] {
+    cursor: pointer;
+  }
+
+  :disabled,
+  [aria-disabled="true"],
+  [data-disabled] {
+    cursor: not-allowed;
+  }
+
+  /* Text inputs keep the I-beam — a hand there implies navigation. */
+  input:not([type]),
+  input[type="text"],
+  input[type="email"],
+  input[type="password"],
+  input[type="search"],
+  input[type="url"],
+  input[type="tel"],
+  input[type="number"],
+  input[type="date"],
+  input[type="datetime-local"],
+  input[type="time"],
+  textarea {
+    cursor: text;
+  }
+
   /* One consistent focus treatment across the whole product */
   :focus-visible {
     outline: 2px solid var(--ring);
