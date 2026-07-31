@@ -47,6 +47,24 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
     updated: UPDATED,
   },
   {
+    path: "/about",
+    title: "About Socialexie",
+    summary:
+      "Why the product exists, what it deliberately leaves out, and the stance it takes on reach and platform rules.",
+    priority: 0.7,
+    changeFrequency: "monthly",
+    updated: UPDATED,
+  },
+  {
+    path: "/contact",
+    title: "Contact",
+    summary:
+      "How to reach the team about support, billing, security reports or partnerships.",
+    priority: 0.6,
+    changeFrequency: "yearly",
+    updated: UPDATED,
+  },
+  {
     path: "/legal/security",
     title: "Security",
     summary:

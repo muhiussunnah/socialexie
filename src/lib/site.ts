@@ -27,8 +27,16 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 }
 
 export const marketingNav = [
+  { href: "/", label: "Home" },
   { href: "/#features", label: "Features" },
   { href: "/#studio", label: "AI Studio" },
   { href: "/#automation", label: "Automation" },
   { href: "/pricing", label: "Pricing" },
+  { href: "/about", label: "About" },
+  { href: "/contact", label: "Contact" },
 ] as const;
+
+/** Where people can actually reach a human. */
+export const contact = {
+  email: process.env.NEXT_PUBLIC_CONTACT_EMAIL ?? "itsinjamul@gmail.com",
+} as const;

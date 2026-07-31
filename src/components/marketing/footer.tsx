@@ -15,6 +15,15 @@ const COLUMNS = [
     ],
   },
   {
+    title: "Company",
+    links: [
+      { href: "/about", label: "About" },
+      { href: "/contact", label: "Contact" },
+      { href: "/llms.txt", label: "llms.txt" },
+      { href: "/feed.xml", label: "RSS feed" },
+    ],
+  },
+  {
     title: "Account",
     links: [
       { href: "/login", label: "Sign in" },
@@ -35,7 +44,7 @@ const COLUMNS = [
 export function MarketingFooter() {
   return (
     <footer className="mt-auto border-t border-line bg-bg-sub">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 md:grid-cols-[1.4fr_repeat(3,1fr)]">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
         <div>
           <Logo />
           <p className="mt-3 max-w-xs text-[13px] leading-relaxed text-muted">
