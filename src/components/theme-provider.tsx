@@ -30,6 +30,7 @@ const ThemeContext = createContext<ThemeContextValue | null>(null);
  */
 export const themeInitScript = `
 (function(){
+  document.documentElement.classList.add("js-ready");
   try {
     var stored = localStorage.getItem(${JSON.stringify(STORAGE_KEY)});
     var choice = stored === "light" || stored === "dark" ? stored : "system";
