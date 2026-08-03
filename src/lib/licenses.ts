@@ -55,17 +55,27 @@ export function isPaidTier(tier: PlanTierDb): boolean {
   return tier !== "free";
 }
 
-/** Active plan tier for a specific user, or "free" when they've never paid. */
+/**
+ * Active plan tier for a specific user, or "free" when they've never paid.
+ *
+ * Runs on every app page via the layout, so it must never throw: any failure —
+ * a missing service key, a transient database error — degrades to "free"
+ * rather than taking the whole dashboard down.
+ */
 export async function tierForUser(userId: string): Promise<PlanTierDb> {
   if (!isSupabaseConfigured()) return "studio";
 
-  const { data } = await service()
-    .from("subscriptions")
-    .select("tier")
-    .eq("user_id", userId)
-    .in("status", ACTIVE_STATUSES)
-    .maybeSingle();
-  return (data as { tier: PlanTierDb } | null)?.tier ?? "free";
+  try {
+    const { data } = await service()
+      .from("subscriptions")
+      .select("tier")
+      .eq("user_id", userId)
+      .in("status", ACTIVE_STATUSES)
+      .maybeSingle();
+    return (data as { tier: PlanTierDb } | null)?.tier ?? "free";
+  } catch {
+    return "free";
+  }
 }
 
 /** Active plan tier for the signed-in user, or "free". */
@@ -138,60 +148,64 @@ export async function redeemLicense(rawCode: string): Promise<RedeemResult> {
   const code = rawCode.trim().toUpperCase();
   if (!code) return { ok: false, error: "Enter your licence key." };
 
-  const db = service();
+  try {
+    const db = service();
 
-  const { data } = await db
-    .from("licenses")
-    .select("id, tier, redeemed_by, revoked_at")
-    .eq("code", code)
-    .maybeSingle();
-  const license = data as LicenseRow | null;
-
-  if (!license) return { ok: false, error: "That licence key isn't valid." };
-  if (license.revoked_at) {
-    return { ok: false, error: "This licence has been revoked." };
-  }
-  if (license.redeemed_by) {
-    return {
-      ok: false,
-      error:
-        license.redeemed_by === session.userId
-          ? "You've already activated this licence."
-          : "This licence has already been used.",
-    };
-  }
-
-  // Claim it atomically — the null filters make a double-redeem impossible.
-  const { data: claimed } = await db
-    .from("licenses")
-    .update({
-      redeemed_by: session.userId,
-      redeemed_at: new Date().toISOString(),
-    })
-    .eq("id", license.id)
-    .is("redeemed_by", null)
-    .is("revoked_at", null)
-    .select("id")
-    .maybeSingle();
-
-  if (!claimed) {
-    return { ok: false, error: "That licence was just used. Try another." };
-  }
-
-  const granted = await grantTier(db, session.userId, license.tier);
-  if (!granted) {
-    // Release the claim so a transient failure doesn't burn the code.
-    await db
+    const { data } = await db
       .from("licenses")
-      .update({ redeemed_by: null, redeemed_at: null })
-      .eq("id", license.id);
-    return {
-      ok: false,
-      error: "Couldn't apply the plan just now. Please try again.",
-    };
-  }
+      .select("id, tier, redeemed_by, revoked_at")
+      .eq("code", code)
+      .maybeSingle();
+    const license = data as LicenseRow | null;
 
-  return { ok: true, tier: license.tier, plan: planName(license.tier) };
+    if (!license) return { ok: false, error: "That licence key isn't valid." };
+    if (license.revoked_at) {
+      return { ok: false, error: "This licence has been revoked." };
+    }
+    if (license.redeemed_by) {
+      return {
+        ok: false,
+        error:
+          license.redeemed_by === session.userId
+            ? "You've already activated this licence."
+            : "This licence has already been used.",
+      };
+    }
+
+    // Claim it atomically — the null filters make a double-redeem impossible.
+    const { data: claimed } = await db
+      .from("licenses")
+      .update({
+        redeemed_by: session.userId,
+        redeemed_at: new Date().toISOString(),
+      })
+      .eq("id", license.id)
+      .is("redeemed_by", null)
+      .is("revoked_at", null)
+      .select("id")
+      .maybeSingle();
+
+    if (!claimed) {
+      return { ok: false, error: "That licence was just used. Try another." };
+    }
+
+    const granted = await grantTier(db, session.userId, license.tier);
+    if (!granted) {
+      // Release the claim so a transient failure doesn't burn the code.
+      await db
+        .from("licenses")
+        .update({ redeemed_by: null, redeemed_at: null })
+        .eq("id", license.id);
+      return {
+        ok: false,
+        error: "Couldn't apply the plan just now. Please try again.",
+      };
+    }
+
+    return { ok: true, tier: license.tier, plan: planName(license.tier) };
+  } catch {
+    return { ok: false, error: "Something went wrong. Please try again." };
+  }
 }
 
 /** Mint and persist a batch of licence codes. Platform admins only. */
@@ -215,13 +229,17 @@ export async function createLicenseBatch(input: {
   const quantity = Math.min(500, Math.max(1, Math.round(input.quantity) || 1));
   const note = input.note?.trim() || null;
 
-  const codes = Array.from({ length: quantity }, mintCode);
-  const { error } = await service()
-    .from("licenses")
-    .insert(codes.map((code) => ({ code, tier: input.tier, note })));
+  try {
+    const codes = Array.from({ length: quantity }, mintCode);
+    const { error } = await service()
+      .from("licenses")
+      .insert(codes.map((code) => ({ code, tier: input.tier, note })));
 
-  if (error) {
+    if (error) {
+      return { ok: false, error: "Couldn't save the batch. Please try again." };
+    }
+    return { ok: true, codes };
+  } catch {
     return { ok: false, error: "Couldn't save the batch. Please try again." };
   }
-  return { ok: true, codes };
 }
