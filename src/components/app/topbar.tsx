@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ChevronsUpDown, Plus, Search } from "lucide-react";
+import { ChevronsUpDown, Plus, Search, Settings } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -50,12 +50,22 @@ export function Topbar({
             <span className="hidden sm:inline">New post</span>
           </Link>
         </Button>
-        <span
-          title={userEmail}
-          className="grid size-9 shrink-0 place-items-center rounded-full border border-line bg-surface-2 text-[12px] font-semibold text-muted"
+        <Link
+          href="/dashboard/settings"
+          aria-label="Settings"
+          title="Settings"
+          className="grid size-9 place-items-center rounded-lg border border-line bg-surface-2 text-muted transition-colors hover:border-line-strong hover:text-fg"
+        >
+          <Settings className="size-4" />
+        </Link>
+        <Link
+          href="/dashboard/settings"
+          title={`${userEmail} — account & settings`}
+          aria-label="Account and settings"
+          className="grid size-9 shrink-0 place-items-center rounded-full border border-line bg-surface-2 text-[12px] font-semibold text-muted transition-colors hover:border-line-strong hover:text-fg"
         >
           {initials(userEmail.split("@")[0])}
-        </span>
+        </Link>
       </div>
     </header>
   );

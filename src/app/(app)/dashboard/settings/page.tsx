@@ -1,11 +1,14 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 import { Check } from "lucide-react";
+import { LicenseActivation } from "@/components/app/license-activation";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Select, Textarea } from "@/components/ui/field";
 import { demoMetrics, demoWorkspace } from "@/lib/demo";
-import { PLANS } from "@/lib/plans";
+import { getCurrentTier, isPaidTier, planName } from "@/lib/licenses";
+import { getPlan, limitsForTier } from "@/lib/plans";
 import { formatPrice } from "@/lib/utils";
 
 export const metadata: Metadata = { title: "Settings" };
@@ -49,17 +52,23 @@ function UsageRow({
   );
 }
 
-export default function SettingsPage() {
-  const currentPlan = PLANS.find((p) => p.name === demoWorkspace.plan) ?? PLANS[1];
+export default async function SettingsPage() {
+  const tier = await getCurrentTier();
+  const paid = isPaidTier(tier);
+  const currentPlanName = planName(tier);
+  const plan = getPlan(tier);
+  const limits = limitsForTier(tier);
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-5">
       <div>
         <h1 className="font-display text-[26px] font-bold">Settings</h1>
         <p className="mt-1 text-[13.5px] text-muted">
-          Workspace, publishing defaults and billing.
+          Workspace, publishing defaults, plan and licences.
         </p>
       </div>
+
+      <LicenseActivation currentPlanName={currentPlanName} isPaid={paid} />
 
       <Card className="p-5">
         <h2 className="text-[15px] font-semibold">Workspace</h2>
@@ -99,42 +108,31 @@ export default function SettingsPage() {
           <div>
             <h2 className="text-[15px] font-semibold">Plan &amp; usage</h2>
             <p className="mt-1 text-[13px] text-muted">
-              {currentPlan.name} ·{" "}
-              {formatPrice(currentPlan.priceCents.monthly)} per month
+              {plan
+                ? `${plan.name} · ${formatPrice(plan.priceCents.monthly)}/mo or ${formatPrice(plan.priceCents.lifetime)} once`
+                : "Free · 2 channels, no card required"}
             </p>
           </div>
-          <Badge tone="signal">{currentPlan.name}</Badge>
+          <Badge tone={paid ? "signal" : "info"}>{currentPlanName}</Badge>
         </div>
 
         <div className="mt-5 flex flex-col gap-4">
           <UsageRow
             label="AI images this month"
-            used={demoMetrics.imageCredits.used}
-            limit={demoMetrics.imageCredits.limit}
+            used={Math.min(demoMetrics.imageCredits.used, limits.imageCredits)}
+            limit={limits.imageCredits}
           />
           <UsageRow
             label="AI words this month"
-            used={demoMetrics.aiWords.used}
-            limit={demoMetrics.aiWords.limit}
+            used={Math.min(demoMetrics.aiWords.used, limits.aiWords)}
+            limit={limits.aiWords}
           />
         </div>
 
-        <div className="mt-5 rounded-lg border border-line bg-surface-2 p-4">
-          <p className="text-[13px] font-medium">
-            Prefer to own it outright?
-          </p>
-          <p className="mt-1 text-[13px] text-muted">
-            The one-time licence for {currentPlan.name} is{" "}
-            {formatPrice(currentPlan.priceCents.lifetime)} and never renews.
-          </p>
-          <div className="mt-3 flex flex-wrap gap-2">
-            <Button size="sm" variant="secondary">
-              Switch to lifetime
-            </Button>
-            <Button size="sm" variant="ghost">
-              Compare plans
-            </Button>
-          </div>
+        <div className="mt-5 flex flex-wrap gap-2">
+          <Button asChild size="sm" variant="secondary">
+            <Link href="/pricing">Compare plans</Link>
+          </Button>
         </div>
       </Card>
 

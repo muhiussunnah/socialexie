@@ -5,6 +5,7 @@ import { Topbar } from "@/components/app/topbar";
 import { requireSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
 import { demoMetrics, demoWorkspace } from "@/lib/demo";
+import { planName, tierForUser } from "@/lib/licenses";
 
 export default async function AppLayout({
   children,
@@ -19,7 +20,7 @@ export default async function AppLayout({
   const session = await requireSession("/dashboard");
 
   const workspaceName = demoWorkspace.name;
-  const plan = demoWorkspace.plan;
+  const plan = planName(await tierForUser(session.userId));
   const email = session.email;
 
   return (

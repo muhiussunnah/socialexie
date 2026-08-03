@@ -1,20 +1,11 @@
 "use client";
 
-import { useState } from "react";
-import { Check, Copy, Sparkles } from "lucide-react";
+import { useState, useTransition } from "react";
+import { Check, Copy, Loader2, Sparkles } from "lucide-react";
+import { generateLicensesAction } from "@/app/admin/licenses/actions";
 import { Button } from "@/components/ui/button";
 import { Field, Input, Select } from "@/components/ui/field";
 import type { PlanTierDb } from "@/lib/supabase/types";
-
-const ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
-
-/** Four groups of four, minus the glyphs people mistype when reading aloud. */
-function mintCode(): string {
-  const bytes = new Uint8Array(12);
-  crypto.getRandomValues(bytes);
-  const chars = Array.from(bytes, (byte) => ALPHABET[byte % ALPHABET.length]);
-  return `SLX-${chars.slice(0, 4).join("")}-${chars.slice(4, 8).join("")}-${chars.slice(8, 12).join("")}`;
-}
 
 export function LicenseGenerator({
   tiers,
@@ -26,11 +17,21 @@ export function LicenseGenerator({
   const [note, setNote] = useState("");
   const [codes, setCodes] = useState<string[]>([]);
   const [copied, setCopied] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [pending, startTransition] = useTransition();
 
   const generate = () => {
-    const count = Math.min(200, Math.max(1, Math.round(quantity)));
-    setCodes(Array.from({ length: count }, mintCode));
-    setCopied(false);
+    setError(null);
+    startTransition(async () => {
+      const result = await generateLicensesAction({ tier, quantity, note });
+      if (result.ok) {
+        setCodes(result.codes);
+        setCopied(false);
+      } else {
+        setError(result.error);
+        setCodes([]);
+      }
+    });
   };
 
   const copy = async () => {
@@ -42,6 +43,8 @@ export function LicenseGenerator({
       // The block stays selectable, so a denied clipboard is not a dead end.
     }
   };
+
+  const count = Math.min(500, Math.max(1, Math.round(quantity) || 1));
 
   return (
     <div className="flex flex-col gap-3 p-4">
@@ -63,7 +66,7 @@ export function LicenseGenerator({
           <Input
             type="number"
             min={1}
-            max={200}
+            max={500}
             value={quantity}
             onChange={(event) => setQuantity(Number(event.target.value))}
             className="h-9 text-[13px] tabular"
@@ -71,7 +74,7 @@ export function LicenseGenerator({
         </Field>
       </div>
 
-      <Field label="Note" hint="Shown next to every code in the batch.">
+      <Field label="Note" hint="Saved next to every code in the batch.">
         <Input
           value={note}
           placeholder="Launch batch 4"
@@ -80,17 +83,27 @@ export function LicenseGenerator({
         />
       </Field>
 
-      <Button size="sm" onClick={generate} className="self-start">
-        <Sparkles />
-        Generate {Math.min(200, Math.max(1, Math.round(quantity) || 1))} codes
+      <Button
+        size="sm"
+        onClick={generate}
+        disabled={pending}
+        className="self-start"
+      >
+        {pending ? <Loader2 className="animate-spin" /> : <Sparkles />}
+        {pending ? "Saving…" : `Generate ${count} codes`}
       </Button>
+
+      {error ? (
+        <p role="alert" className="text-[12px] text-danger">
+          {error}
+        </p>
+      ) : null}
 
       {codes.length > 0 ? (
         <div className="rounded-lg border border-line bg-surface-2">
           <div className="flex items-center justify-between gap-2 border-b border-line px-3 py-2">
             <p className="text-[12px] text-muted">
-              {codes.length} codes ·{" "}
-              <span className="capitalize">{tier}</span>
+              {codes.length} codes · <span className="capitalize">{tier}</span>
               {note ? ` · ${note}` : ""}
             </p>
             <button
@@ -112,8 +125,8 @@ export function LicenseGenerator({
         </div>
       ) : (
         <p className="text-[12px] text-subtle">
-          Codes are minted in the browser so nothing is written until you save
-          the batch. Copy them before leaving this page.
+          Each batch is saved and ready to redeem the moment you generate it.
+          Copy the codes here to hand them out.
         </p>
       )}
     </div>
