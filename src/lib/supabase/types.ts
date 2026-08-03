@@ -251,6 +251,7 @@ export interface AiConnection {
   enabled: boolean;
   default_text_model: string | null;
   default_image_model: string | null;
+  default_video_model: string | null;
   status: AiConnectionStatusDb;
   last_tested_at: string | null;
   last_error: string | null;
@@ -292,6 +293,7 @@ export interface Database {
         | "api_key"
         | "default_text_model"
         | "default_image_model"
+        | "default_video_model"
         | "last_tested_at"
         | "last_error"
       >;

@@ -22,6 +22,8 @@ import { supabaseAdmin } from "@/lib/supabase/server";
 
 export type ConnectionStatus = "not_tested" | "connected" | "error";
 
+export type ProviderKind = "text" | "image" | "video";
+
 export interface ProviderMeta {
   id: RemoteProviderId;
   label: string;
@@ -30,11 +32,22 @@ export interface ProviderMeta {
   keyHint: string;
   keyUrl: string;
   keyUrlLabel: string;
-  kinds: ("text" | "image")[];
+  kinds: ProviderKind[];
 }
 
 /** Ordered the way the connections page presents them. */
 export const PROVIDER_CATALOGUE: readonly ProviderMeta[] = [
+  {
+    id: "google",
+    label: "Google Omni",
+    vendor: "Gemini · Imagen · Veo",
+    tagline:
+      "One Google key powers it all — Gemini for copy, Imagen and Nano Banana for images, and Veo 3 for video.",
+    keyHint: "AIza…",
+    keyUrl: "https://aistudio.google.com/app/apikey",
+    keyUrlLabel: "aistudio.google.com",
+    kinds: ["text", "image", "video"],
+  },
   {
     id: "anthropic",
     label: "Claude",
@@ -57,14 +70,26 @@ export const PROVIDER_CATALOGUE: readonly ProviderMeta[] = [
     kinds: ["text", "image"],
   },
   {
-    id: "google",
-    label: "Gemini",
-    vendor: "Google AI",
-    tagline: "Gemini text plus Imagen and Gemini image generation.",
-    keyHint: "AIza…",
-    keyUrl: "https://aistudio.google.com/app/apikey",
-    keyUrlLabel: "aistudio.google.com",
-    kinds: ["text", "image"],
+    id: "fal",
+    label: "fal.ai",
+    vendor: "fal.ai",
+    tagline:
+      "The media powerhouse — FLUX, Seedream and Recraft for images, Veo, Kling and Seedance for video.",
+    keyHint: "fal-…:…",
+    keyUrl: "https://fal.ai/dashboard/keys",
+    keyUrlLabel: "fal.ai/dashboard/keys",
+    kinds: ["image", "video"],
+  },
+  {
+    id: "replicate",
+    label: "Replicate",
+    vendor: "Replicate",
+    tagline:
+      "Thousands of open models — FLUX and SDXL for images, Kling and Seedance for video.",
+    keyHint: "r8_…",
+    keyUrl: "https://replicate.com/account/api-tokens",
+    keyUrlLabel: "replicate.com",
+    kinds: ["image", "video"],
   },
   {
     id: "openrouter",
@@ -76,6 +101,26 @@ export const PROVIDER_CATALOGUE: readonly ProviderMeta[] = [
     keyUrl: "https://openrouter.ai/keys",
     keyUrlLabel: "openrouter.ai",
     kinds: ["text", "image"],
+  },
+  {
+    id: "huggingface",
+    label: "Hugging Face",
+    vendor: "Hugging Face",
+    tagline: "Open image models — FLUX.1 and Stable Diffusion XL via Inference.",
+    keyHint: "hf_…",
+    keyUrl: "https://huggingface.co/settings/tokens",
+    keyUrlLabel: "huggingface.co",
+    kinds: ["image"],
+  },
+  {
+    id: "imagerouter",
+    label: "ImageRouter",
+    vendor: "ImageRouter",
+    tagline: "Free and open image models behind one OpenAI-compatible key.",
+    keyHint: "sk-…",
+    keyUrl: "https://imagerouter.io/keys",
+    keyUrlLabel: "imagerouter.io",
+    kinds: ["image"],
   },
 ];
 
@@ -89,11 +134,13 @@ function isProviderId(value: string): value is RemoteProviderId {
 export interface ConnectionView extends ProviderMeta {
   textModels: { id: string; label: string }[];
   imageModels: { id: string; label: string }[];
+  videoModels: { id: string; label: string }[];
   hasKey: boolean;
   keyPreview: string | null;
   enabled: boolean;
   defaultTextModel: string | null;
   defaultImageModel: string | null;
+  defaultVideoModel: string | null;
   status: ConnectionStatus;
   lastTestedAt: string | null;
   lastError: string | null;
@@ -107,6 +154,7 @@ interface ConnectionRow {
   enabled: boolean;
   default_text_model: string | null;
   default_image_model: string | null;
+  default_video_model: string | null;
   status: ConnectionStatus;
   last_tested_at: string | null;
   last_error: string | null;
@@ -131,7 +179,7 @@ async function rowsForUser(userId: string): Promise<Map<string, ConnectionRow>> 
   const { data } = await service()
     .from("ai_connections")
     .select(
-      "provider, api_key, enabled, default_text_model, default_image_model, status, last_tested_at, last_error",
+      "provider, api_key, enabled, default_text_model, default_image_model, default_video_model, status, last_tested_at, last_error",
     )
     .eq("user_id", userId);
 
@@ -149,11 +197,15 @@ function buildView(meta: ProviderMeta, row: ConnectionRow | undefined): Connecti
     imageModels: meta.kinds.includes("image")
       ? catalogueModels(meta.id, "image")
       : [],
+    videoModels: meta.kinds.includes("video")
+      ? catalogueModels(meta.id, "video")
+      : [],
     hasKey: key !== null,
     keyPreview: key ? maskKey(key) : null,
     enabled: row?.enabled ?? true,
     defaultTextModel: row?.default_text_model ?? null,
     defaultImageModel: row?.default_image_model ?? null,
+    defaultVideoModel: row?.default_video_model ?? null,
     status: row?.status ?? "not_tested",
     lastTestedAt: row?.last_tested_at ?? null,
     lastError: row?.last_error ?? null,
@@ -227,6 +279,7 @@ export interface SaveConnectionInput {
   enabled: boolean;
   defaultTextModel?: string | null;
   defaultImageModel?: string | null;
+  defaultVideoModel?: string | null;
 }
 
 /**
@@ -268,6 +321,7 @@ export async function saveConnection(
       enabled: input.enabled,
       default_text_model: input.defaultTextModel || null,
       default_image_model: input.defaultImageModel || null,
+      default_video_model: input.defaultVideoModel || null,
     };
     if (newKey) {
       patch.api_key = newKey;
@@ -405,6 +459,27 @@ function probeConfig(provider: RemoteProviderId, key: string): ProbeConfig {
       return {
         url: "https://api.anthropic.com/v1/models",
         headers: { "x-api-key": key, "anthropic-version": "2023-06-01" },
+      };
+    case "fal":
+      // fal has no auth-check endpoint; the app listing 401s on a bad key.
+      return {
+        url: "https://rest.alpha.fal.ai/apps",
+        headers: { authorization: `Key ${key}` },
+      };
+    case "replicate":
+      return {
+        url: "https://api.replicate.com/v1/account",
+        headers: { authorization: `Bearer ${key}` },
+      };
+    case "huggingface":
+      return {
+        url: "https://huggingface.co/api/whoami-v2",
+        headers: { authorization: `Bearer ${key}` },
+      };
+    case "imagerouter":
+      return {
+        url: "https://api.imagerouter.io/v1/models",
+        headers: { authorization: `Bearer ${key}` },
       };
   }
 }

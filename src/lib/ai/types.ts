@@ -8,7 +8,7 @@
 
 import type { PlatformId } from "@/lib/platforms";
 
-export type ModelKind = "image" | "text";
+export type ModelKind = "image" | "text" | "video";
 
 /** `simulated` is not a vendor — it marks placeholder output. */
 export type ProviderId =
@@ -16,6 +16,10 @@ export type ProviderId =
   | "google"
   | "openai"
   | "anthropic"
+  | "fal"
+  | "replicate"
+  | "huggingface"
+  | "imagerouter"
   | "simulated";
 
 export type RemoteProviderId = Exclude<ProviderId, "simulated">;
@@ -25,6 +29,8 @@ export type Capability =
   | "image-edit"
   | "aspect-control"
   | "typography"
+  | "text-to-video"
+  | "image-to-video"
   | "chat"
   | "long-context"
   | "json-output";
@@ -43,6 +49,9 @@ export interface ModelSpec {
   /** Rough list price, for the pre-flight estimate only. Never billed from. */
   approxCentsPerImage?: number;
   approxCentsPerMTok?: number;
+  approxCentsPerSecond?: number;
+  /** Longest clip a video model will render, in seconds. */
+  maxDurationSeconds?: number;
 }
 
 /** A model plus whether its provider currently has a key. */
@@ -83,6 +92,18 @@ export interface TextRequest {
   modelId?: string;
 }
 
+/** A validated video request, before the prompt is composed. */
+export interface VideoRequest {
+  prompt: string;
+  style?: string;
+  durationSeconds?: number;
+  aspectRatio?: string;
+  /** Data URI or URL of a still to animate, for image-to-video models. */
+  imageUrl?: string;
+  count: number;
+  modelId?: string;
+}
+
 /**
  * What a provider actually receives. Composing the prompt once, up front, keeps
  * every provider mapping down to request shape and response shape.
@@ -101,6 +122,14 @@ export interface TextJob {
   maxOutputTokens: number;
 }
 
+export interface VideoJob {
+  prompt: string;
+  durationSeconds: number;
+  aspectRatio: string;
+  imageUrl?: string;
+  count: number;
+}
+
 /* -------------------------------------------------------------------------
    Results
    ------------------------------------------------------------------------- */
@@ -116,6 +145,17 @@ export interface GeneratedImage {
 export interface TextVariant {
   text: string;
   characters: number;
+}
+
+export interface GeneratedVideo {
+  /** `data:` URI or remote URL, ready for a `<video src>`. */
+  url: string;
+  width?: number;
+  height?: number;
+  durationSeconds?: number;
+  mimeType: string;
+  /** Optional still frame for a lightweight preview. */
+  posterUrl?: string;
 }
 
 /** One provider that was tried and failed before the chain moved on. */
@@ -140,6 +180,10 @@ export interface ImageResult extends ResultBase {
 
 export interface TextResult extends ResultBase {
   variants: TextVariant[];
+}
+
+export interface VideoResult extends ResultBase {
+  videos: GeneratedVideo[];
 }
 
 /* -------------------------------------------------------------------------
@@ -169,6 +213,15 @@ export interface TextProvider extends ProviderBase {
     model: ModelSpec,
     signal?: AbortSignal,
   ): Promise<TextVariant[]>;
+}
+
+export interface VideoProvider extends ProviderBase {
+  kind: "video";
+  generate(
+    job: VideoJob,
+    model: ModelSpec,
+    signal?: AbortSignal,
+  ): Promise<GeneratedVideo[]>;
 }
 
 /**

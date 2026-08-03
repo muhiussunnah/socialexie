@@ -20,10 +20,20 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Field, Input, Label, Select } from "@/components/ui/field";
-import type { ConnectionStatus, ConnectionView } from "@/lib/ai/connections";
+import type {
+  ConnectionStatus,
+  ConnectionView,
+  ProviderKind,
+} from "@/lib/ai/connections";
 import { cn } from "@/lib/utils";
 
 type Feedback = { tone: "ok" | "error"; text: string } | null;
+
+const KIND_LABEL: Record<ProviderKind, string> = {
+  text: "Text",
+  image: "Image",
+  video: "Video",
+};
 
 function maskFromKey(key: string): string {
   return `••••••••${key.slice(-4)}`;
@@ -70,6 +80,9 @@ export function ProviderCard({ connection }: { connection: ConnectionView }) {
   const [imageModel, setImageModel] = useState(
     connection.defaultImageModel ?? "",
   );
+  const [videoModel, setVideoModel] = useState(
+    connection.defaultVideoModel ?? "",
+  );
 
   const [status, setStatus] = useState<ConnectionStatus>(connection.status);
   const [hasKey, setHasKey] = useState(connection.hasKey);
@@ -89,6 +102,7 @@ export function ProviderCard({ connection }: { connection: ConnectionView }) {
         enabled,
         defaultTextModel: textModel || null,
         defaultImageModel: imageModel || null,
+        defaultVideoModel: videoModel || null,
       });
       if (result.ok) {
         if (typedKey) {
@@ -166,6 +180,16 @@ export function ProviderCard({ connection }: { connection: ConnectionView }) {
           <p className="mt-0.5 text-[13px] leading-snug text-muted">
             {connection.tagline}
           </p>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {connection.kinds.map((kind) => (
+              <span
+                key={kind}
+                className="rounded-full border border-line bg-surface-2 px-2 py-0.5 text-[10.5px] font-medium tracking-wide text-muted uppercase"
+              >
+                {KIND_LABEL[kind]}
+              </span>
+            ))}
+          </div>
         </div>
         <StatusPill
           status={status}
@@ -243,6 +267,22 @@ export function ProviderCard({ connection }: { connection: ConnectionView }) {
               >
                 <option value="">Auto — cheapest available</option>
                 {connection.imageModels.map((model) => (
+                  <option key={model.id} value={model.id}>
+                    {model.label}
+                  </option>
+                ))}
+              </Select>
+            </Field>
+          ) : null}
+          {connection.videoModels.length > 0 ? (
+            <Field label="Default video model">
+              <Select
+                value={videoModel}
+                onChange={(event) => setVideoModel(event.target.value)}
+                className="h-10 text-[13px]"
+              >
+                <option value="">Auto — cheapest available</option>
+                {connection.videoModels.map((model) => (
                   <option key={model.id} value={model.id}>
                     {model.label}
                   </option>

@@ -5,6 +5,7 @@ import {
   NoProviderError,
   ProviderError,
   type GeneratedImage,
+  type GeneratedVideo,
   type ImageProvider,
   type ModelKind,
   type ModelOption,
@@ -16,6 +17,7 @@ import {
   type TextJob,
   type TextProvider,
   type TextVariant,
+  type VideoProvider,
 } from "@/lib/ai/types";
 
 /**
@@ -36,6 +38,10 @@ const KEY_NAMES: Record<RemoteProviderId, string> = {
   google: "GOOGLE_AI_API_KEY",
   openai: "OPENAI_API_KEY",
   anthropic: "ANTHROPIC_API_KEY",
+  fal: "FAL_KEY",
+  replicate: "REPLICATE_API_TOKEN",
+  huggingface: "HF_TOKEN",
+  imagerouter: "IMAGEROUTER_API_KEY",
 };
 
 /** Per-provider key overrides supplied by the signed-in workspace. */
@@ -142,6 +148,11 @@ const GATES: Record<RemoteProviderId, Gate> = {
   google: new Gate({ concurrency: 3, minIntervalMs: 150 }),
   openai: new Gate({ concurrency: 3, minIntervalMs: 150 }),
   anthropic: new Gate({ concurrency: 3, minIntervalMs: 150 }),
+  // Media vendors are slower and stricter, so admit fewer at a time.
+  fal: new Gate({ concurrency: 2, minIntervalMs: 250 }),
+  replicate: new Gate({ concurrency: 2, minIntervalMs: 250 }),
+  huggingface: new Gate({ concurrency: 2, minIntervalMs: 300 }),
+  imagerouter: new Gate({ concurrency: 2, minIntervalMs: 200 }),
 };
 
 /* -------------------------------------------------------------------------
@@ -202,6 +213,70 @@ async function postJson(
       clearTimeout(timer);
       context.signal?.removeEventListener("abort", relay);
     }
+  });
+}
+
+/**
+ * Lower-level sibling of `postJson` for responses that aren't JSON (image
+ * bytes) or flows that need several round-trips (prediction polling). Applies
+ * the same gate, timeout and abort relay, and hands back the raw `Response`.
+ */
+async function requestThroughGate(
+  provider: RemoteProviderId,
+  url: string,
+  init: RequestInit,
+  context: { signal?: AbortSignal; timeoutMs?: number } = {},
+): Promise<Response> {
+  return GATES[provider].run(async () => {
+    const controller = new AbortController();
+    const timer = setTimeout(
+      () => controller.abort(),
+      context.timeoutMs ?? DEFAULT_TIMEOUT_MS,
+    );
+    const relay = () => controller.abort();
+    context.signal?.addEventListener("abort", relay);
+
+    try {
+      const response = await fetch(url, {
+        ...init,
+        signal: controller.signal,
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        const detail = await response.text().catch(() => "");
+        throw new ProviderError(
+          provider,
+          response.status,
+          `${provider} responded ${response.status}`,
+          detail.slice(0, 1_000),
+        );
+      }
+      return response;
+    } catch (error) {
+      if (error instanceof ProviderError) throw error;
+      const message =
+        error instanceof Error ? error.message : "upstream request failed";
+      throw new ProviderError(provider, null, message);
+    } finally {
+      clearTimeout(timer);
+      context.signal?.removeEventListener("abort", relay);
+    }
+  });
+}
+
+/** Abort-aware delay used between polls of an async media job. */
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve, reject) => {
+    if (signal?.aborted) return reject(new Error("aborted"));
+    const timer = setTimeout(() => {
+      signal?.removeEventListener("abort", onAbort);
+      resolve();
+    }, ms);
+    const onAbort = () => {
+      clearTimeout(timer);
+      reject(new Error("aborted"));
+    };
+    signal?.addEventListener("abort", onAbort, { once: true });
   });
 }
 
@@ -373,6 +448,189 @@ const IMAGE_MODELS: readonly ModelSpec[] = [
     maxHeight: 1536,
     approxCentsPerImage: 4,
   },
+  {
+    id: "fal/flux-1.1-pro",
+    label: "FLUX 1.1 Pro",
+    provider: "fal",
+    kind: "image",
+    remoteId: "fal-ai/flux-pro/v1.1",
+    capabilities: ["text-to-image", "aspect-control", "typography"],
+    maxWidth: 2048,
+    maxHeight: 2048,
+    approxCentsPerImage: 4,
+  },
+  {
+    id: "fal/flux-dev",
+    label: "FLUX.1 dev",
+    provider: "fal",
+    kind: "image",
+    remoteId: "fal-ai/flux/dev",
+    capabilities: ["text-to-image", "aspect-control"],
+    maxWidth: 1536,
+    maxHeight: 1536,
+    approxCentsPerImage: 3,
+  },
+  {
+    id: "fal/seedream-3",
+    label: "Seedream 3.0",
+    provider: "fal",
+    kind: "image",
+    remoteId: "fal-ai/bytedance/seedream/v3/text-to-image",
+    capabilities: ["text-to-image", "aspect-control", "typography"],
+    maxWidth: 2048,
+    maxHeight: 2048,
+    approxCentsPerImage: 3,
+  },
+  {
+    id: "fal/recraft-v3",
+    label: "Recraft V3",
+    provider: "fal",
+    kind: "image",
+    remoteId: "fal-ai/recraft-v3",
+    capabilities: ["text-to-image", "aspect-control", "typography"],
+    maxWidth: 2048,
+    maxHeight: 2048,
+    approxCentsPerImage: 4,
+  },
+  {
+    id: "replicate/flux-1.1-pro",
+    label: "FLUX 1.1 Pro",
+    provider: "replicate",
+    kind: "image",
+    remoteId: "black-forest-labs/flux-1.1-pro",
+    capabilities: ["text-to-image", "aspect-control", "typography"],
+    maxWidth: 2048,
+    maxHeight: 2048,
+    approxCentsPerImage: 4,
+  },
+  {
+    id: "replicate/sdxl",
+    label: "Stable Diffusion XL",
+    provider: "replicate",
+    kind: "image",
+    remoteId: "stability-ai/sdxl",
+    capabilities: ["text-to-image", "aspect-control"],
+    maxWidth: 1536,
+    maxHeight: 1536,
+    approxCentsPerImage: 2,
+  },
+  {
+    id: "huggingface/flux-1-dev",
+    label: "FLUX.1 dev",
+    provider: "huggingface",
+    kind: "image",
+    remoteId: "black-forest-labs/FLUX.1-dev",
+    capabilities: ["text-to-image"],
+    maxWidth: 1360,
+    maxHeight: 1360,
+    approxCentsPerImage: 1,
+  },
+  {
+    id: "huggingface/sdxl",
+    label: "Stable Diffusion XL",
+    provider: "huggingface",
+    kind: "image",
+    remoteId: "stabilityai/stable-diffusion-xl-base-1.0",
+    capabilities: ["text-to-image"],
+    maxWidth: 1024,
+    maxHeight: 1024,
+    approxCentsPerImage: 1,
+  },
+  {
+    id: "imagerouter/flux-1-schnell",
+    label: "FLUX.1 schnell (free)",
+    provider: "imagerouter",
+    kind: "image",
+    remoteId: "black-forest-labs/FLUX-1-schnell:free",
+    capabilities: ["text-to-image", "aspect-control"],
+    maxWidth: 1536,
+    maxHeight: 1536,
+    approxCentsPerImage: 0,
+  },
+  {
+    id: "imagerouter/sdxl-turbo",
+    label: "SDXL Turbo (free)",
+    provider: "imagerouter",
+    kind: "image",
+    remoteId: "stabilityai/sdxl-turbo:free",
+    capabilities: ["text-to-image"],
+    maxWidth: 1024,
+    maxHeight: 1024,
+    approxCentsPerImage: 0,
+  },
+];
+
+const VIDEO_MODELS: readonly ModelSpec[] = [
+  {
+    id: "google/veo-3",
+    label: "Veo 3",
+    provider: "google",
+    kind: "video",
+    remoteId: "veo-3.0-generate-001",
+    capabilities: ["text-to-video", "image-to-video", "aspect-control"],
+    maxDurationSeconds: 8,
+    approxCentsPerSecond: 40,
+  },
+  {
+    id: "google/veo-3-fast",
+    label: "Veo 3 Fast",
+    provider: "google",
+    kind: "video",
+    remoteId: "veo-3.0-fast-generate-001",
+    capabilities: ["text-to-video", "aspect-control"],
+    maxDurationSeconds: 8,
+    approxCentsPerSecond: 15,
+  },
+  {
+    id: "fal/veo-3",
+    label: "Veo 3 (via fal)",
+    provider: "fal",
+    kind: "video",
+    remoteId: "fal-ai/veo3",
+    capabilities: ["text-to-video", "aspect-control"],
+    maxDurationSeconds: 8,
+    approxCentsPerSecond: 40,
+  },
+  {
+    id: "fal/kling-2.1",
+    label: "Kling 2.1",
+    provider: "fal",
+    kind: "video",
+    remoteId: "fal-ai/kling-video/v2.1/master/text-to-video",
+    capabilities: ["text-to-video", "image-to-video", "aspect-control"],
+    maxDurationSeconds: 10,
+    approxCentsPerSecond: 12,
+  },
+  {
+    id: "fal/seedance-1",
+    label: "Seedance 1.0 Pro",
+    provider: "fal",
+    kind: "video",
+    remoteId: "fal-ai/bytedance/seedance/v1/pro/text-to-video",
+    capabilities: ["text-to-video", "image-to-video", "aspect-control"],
+    maxDurationSeconds: 10,
+    approxCentsPerSecond: 10,
+  },
+  {
+    id: "replicate/kling-2.1",
+    label: "Kling 2.1",
+    provider: "replicate",
+    kind: "video",
+    remoteId: "kwaivgi/kling-v2.1",
+    capabilities: ["text-to-video", "image-to-video", "aspect-control"],
+    maxDurationSeconds: 10,
+    approxCentsPerSecond: 12,
+  },
+  {
+    id: "replicate/seedance-1",
+    label: "Seedance 1.0 Pro",
+    provider: "replicate",
+    kind: "video",
+    remoteId: "bytedance/seedance-1-pro",
+    capabilities: ["text-to-video", "image-to-video", "aspect-control"],
+    maxDurationSeconds: 10,
+    approxCentsPerSecond: 10,
+  },
 ];
 
 const TEXT_MODELS: readonly ModelSpec[] = [
@@ -464,11 +722,20 @@ const PROVIDER_LABELS: Record<RemoteProviderId, string> = {
   google: "Google AI",
   openai: "OpenAI",
   anthropic: "Anthropic",
+  fal: "fal.ai",
+  replicate: "Replicate",
+  huggingface: "Hugging Face",
+  imagerouter: "ImageRouter",
 };
 
+function catalogueFor(kind: ModelKind): readonly ModelSpec[] {
+  if (kind === "image") return IMAGE_MODELS;
+  if (kind === "video") return VIDEO_MODELS;
+  return TEXT_MODELS;
+}
+
 function modelsFor(provider: RemoteProviderId, kind: ModelKind): ModelSpec[] {
-  const catalogue = kind === "image" ? IMAGE_MODELS : TEXT_MODELS;
-  return catalogue.filter((model) => model.provider === provider);
+  return catalogueFor(kind).filter((model) => model.provider === provider);
 }
 
 /** The models a provider offers for a kind, as lightweight option rows. */
@@ -668,6 +935,356 @@ const openAiImage: ImageProvider = {
   },
 };
 
+/** Base64 a byte buffer without Node's Buffer, so it also runs on Workers. */
+function bytesToBase64(bytes: Uint8Array): string {
+  let binary = "";
+  const chunk = 0x8000;
+  for (let i = 0; i < bytes.length; i += chunk) {
+    binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+  }
+  return btoa(binary);
+}
+
+interface ReplicatePrediction {
+  status: string;
+  output: unknown;
+  error: unknown;
+  urls?: { get?: string };
+}
+
+/**
+ * Create a Replicate prediction and wait for it. `Prefer: wait` blocks the
+ * create call server-side for the first stretch; anything still running is
+ * then polled until the budget runs out. Returns the output file URLs, which
+ * Replicate serves publicly — no key needed to fetch them.
+ */
+async function replicateRun(
+  remoteId: string,
+  input: Record<string, unknown>,
+  signal: AbortSignal | undefined,
+  budgetMs: number,
+): Promise<string[]> {
+  const key = requireKey("replicate");
+  let prediction = (await postJson(
+    `https://api.replicate.com/v1/models/${remoteId}/predictions`,
+    {
+      headers: { authorization: `Bearer ${key}`, prefer: "wait=55" },
+      body: { input },
+    },
+    { provider: "replicate", signal, timeoutMs: 60_000 },
+  )) as ReplicatePrediction;
+
+  const deadline = Date.now() + budgetMs;
+  while (
+    (prediction.status === "starting" || prediction.status === "processing") &&
+    Date.now() < deadline
+  ) {
+    await delay(3_000, signal);
+    const getUrl = prediction.urls?.get;
+    if (!getUrl) break;
+    const response = await requestThroughGate(
+      "replicate",
+      getUrl,
+      { method: "GET", headers: { authorization: `Bearer ${key}` } },
+      { signal, timeoutMs: 30_000 },
+    );
+    prediction = (await response.json()) as ReplicatePrediction;
+  }
+
+  if (prediction.status === "failed" || prediction.status === "canceled") {
+    throw new ProviderError(
+      "replicate",
+      null,
+      `replicate ${prediction.status}`,
+      String(prediction.error ?? "").slice(0, 500),
+    );
+  }
+  if (prediction.status !== "succeeded") {
+    throw new ProviderError("replicate", null, "replicate render timed out");
+  }
+
+  const out = prediction.output;
+  if (Array.isArray(out)) {
+    return out.filter((url): url is string => typeof url === "string");
+  }
+  return typeof out === "string" ? [out] : [];
+}
+
+/**
+ * fal.ai serves most models synchronously from `fal.run`, returning the assets
+ * on the response. One call can render a whole batch via `num_images`.
+ */
+const falImage: ImageProvider = {
+  id: "fal",
+  kind: "image",
+  label: PROVIDER_LABELS.fal,
+  models: modelsFor("fal", "image"),
+  isConfigured: () => apiKey("fal") !== null,
+  async generate(job, model, signal) {
+    const key = requireKey("fal");
+    const payload = await postJson(
+      `https://fal.run/${model.remoteId}`,
+      {
+        headers: { authorization: `Key ${key}` },
+        body: {
+          prompt: job.prompt,
+          image_size: { width: job.width, height: job.height },
+          num_images: job.count,
+        },
+      },
+      { provider: "fal", signal, timeoutMs: 120_000 },
+    );
+
+    return asArray(dig(payload, "images"))
+      .map((item) => ({
+        url: asString(dig(item, "url")),
+        mime: asString(dig(item, "content_type")) ?? "image/jpeg",
+      }))
+      .filter((item) => item.url !== null)
+      .map((item) => ({
+        url: item.url as string,
+        width: job.width,
+        height: job.height,
+        mimeType: item.mime,
+      }));
+  },
+};
+
+/** Replicate hosts community models behind an async prediction API. */
+const replicateImage: ImageProvider = {
+  id: "replicate",
+  kind: "image",
+  label: PROVIDER_LABELS.replicate,
+  models: modelsFor("replicate", "image"),
+  isConfigured: () => apiKey("replicate") !== null,
+  async generate(job, model, signal) {
+    const urls = await replicateRun(
+      model.remoteId,
+      { prompt: job.prompt },
+      signal,
+      50_000,
+    );
+    if (urls.length === 0) {
+      throw new ProviderError("replicate", null, "replicate returned no image");
+    }
+    return urls.slice(0, job.count).map((url) => ({
+      url,
+      width: job.width,
+      height: job.height,
+      mimeType: "image/png",
+    }));
+  },
+};
+
+/** Hugging Face Inference returns the raw image bytes, one per call. */
+const huggingFaceImage: ImageProvider = {
+  id: "huggingface",
+  kind: "image",
+  label: PROVIDER_LABELS.huggingface,
+  models: modelsFor("huggingface", "image"),
+  isConfigured: () => apiKey("huggingface") !== null,
+  async generate(job, model, signal) {
+    const key = requireKey("huggingface");
+    const single = async (): Promise<GeneratedImage> => {
+      const response = await requestThroughGate(
+        "huggingface",
+        `https://api-inference.huggingface.co/models/${model.remoteId}`,
+        {
+          method: "POST",
+          headers: {
+            authorization: `Bearer ${key}`,
+            "content-type": "application/json",
+            accept: "image/png",
+          },
+          body: JSON.stringify({ inputs: job.prompt }),
+        },
+        { signal, timeoutMs: 120_000 },
+      );
+
+      const mime = response.headers.get("content-type") ?? "image/png";
+      if (mime.includes("json")) {
+        throw new ProviderError("huggingface", null, "model is warming up");
+      }
+      const bytes = new Uint8Array(await response.arrayBuffer());
+      return {
+        url: dataUri(mime, bytesToBase64(bytes)),
+        width: job.width,
+        height: job.height,
+        mimeType: mime,
+      };
+    };
+
+    return Promise.all(batches(job.count, 1).map(() => single()));
+  },
+};
+
+/** ImageRouter is OpenAI-compatible and fronts a pool of free/open models. */
+const imageRouterImage: ImageProvider = {
+  id: "imagerouter",
+  kind: "image",
+  label: PROVIDER_LABELS.imagerouter,
+  models: modelsFor("imagerouter", "image"),
+  isConfigured: () => apiKey("imagerouter") !== null,
+  async generate(job, model, signal) {
+    const key = requireKey("imagerouter");
+    const payload = await postJson(
+      "https://api.imagerouter.io/v1/openai/images/generations",
+      {
+        headers: { authorization: `Bearer ${key}` },
+        body: { model: model.remoteId, prompt: job.prompt },
+      },
+      { provider: "imagerouter", signal, timeoutMs: 120_000 },
+    );
+
+    return asArray(dig(payload, "data"))
+      .map((item) => ({
+        b64: asString(dig(item, "b64_json")),
+        url: asString(dig(item, "url")),
+      }))
+      .map((item) => ({
+        url: item.b64 ? dataUri("image/png", item.b64) : item.url,
+        width: job.width,
+        height: job.height,
+        mimeType: "image/png",
+      }))
+      .filter((item): item is GeneratedImage => item.url !== null);
+  },
+};
+
+/* -------------------------------------------------------------------------
+   Video providers
+   ------------------------------------------------------------------------- */
+
+/**
+ * Google Veo through the Gemini API is a long-running operation: submit, poll
+ * the operation until done, then pull the sample. The sample URI is fetched
+ * server-side with the key and inlined, so the browser never sees the key.
+ */
+const googleVideo: VideoProvider = {
+  id: "google",
+  kind: "video",
+  label: PROVIDER_LABELS.google,
+  models: modelsFor("google", "video"),
+  isConfigured: () => apiKey("google") !== null,
+  async generate(job, model, signal) {
+    const key = requireKey("google");
+    const base = "https://generativelanguage.googleapis.com/v1beta";
+    const headers = { "x-goog-api-key": key };
+
+    const started = (await postJson(
+      `${base}/models/${model.remoteId}:predictLongRunning`,
+      {
+        headers,
+        body: {
+          instances: [{ prompt: job.prompt }],
+          parameters: { aspectRatio: job.aspectRatio },
+        },
+      },
+      { provider: "google", signal, timeoutMs: 30_000 },
+    )) as { name?: string };
+
+    const operation = started.name;
+    if (!operation) {
+      throw new ProviderError("google", null, "veo did not start");
+    }
+
+    const deadline = Date.now() + 170_000;
+    let done = false;
+    let payload: unknown = null;
+    while (!done && Date.now() < deadline) {
+      await delay(6_000, signal);
+      const response = await requestThroughGate(
+        "google",
+        `${base}/${operation}`,
+        { method: "GET", headers },
+        { signal, timeoutMs: 30_000 },
+      );
+      payload = await response.json();
+      done = Boolean(dig(payload, "done"));
+    }
+    if (!done) {
+      throw new ProviderError("google", null, "veo render timed out");
+    }
+
+    const samples = asArray(
+      dig(payload, "response", "generateVideoResponse", "generatedSamples"),
+    );
+    const results: GeneratedVideo[] = [];
+    for (const sample of samples.slice(0, job.count)) {
+      const uri = asString(dig(sample, "video", "uri"));
+      if (!uri) continue;
+      const file = await requestThroughGate(
+        "google",
+        uri,
+        { method: "GET", headers },
+        { signal, timeoutMs: 60_000 },
+      );
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      results.push({
+        url: dataUri("video/mp4", bytesToBase64(bytes)),
+        durationSeconds: job.durationSeconds,
+        mimeType: "video/mp4",
+      });
+    }
+    return results;
+  },
+};
+
+/** fal.ai video models return a public MP4 URL on the response. */
+const falVideo: VideoProvider = {
+  id: "fal",
+  kind: "video",
+  label: PROVIDER_LABELS.fal,
+  models: modelsFor("fal", "video"),
+  isConfigured: () => apiKey("fal") !== null,
+  async generate(job, model, signal) {
+    const key = requireKey("fal");
+    const body: Record<string, unknown> = {
+      prompt: job.prompt,
+      aspect_ratio: job.aspectRatio,
+      duration: `${job.durationSeconds}s`,
+    };
+    if (job.imageUrl) body.image_url = job.imageUrl;
+
+    const payload = await postJson(
+      `https://fal.run/${model.remoteId}`,
+      { headers: { authorization: `Key ${key}` }, body },
+      { provider: "fal", signal, timeoutMs: 175_000 },
+    );
+
+    const url = asString(dig(payload, "video", "url"));
+    if (!url) throw new ProviderError("fal", null, "fal returned no video");
+    return [{ url, durationSeconds: job.durationSeconds, mimeType: "video/mp4" }];
+  },
+};
+
+/** Replicate video models, driven through the same prediction flow as images. */
+const replicateVideo: VideoProvider = {
+  id: "replicate",
+  kind: "video",
+  label: PROVIDER_LABELS.replicate,
+  models: modelsFor("replicate", "video"),
+  isConfigured: () => apiKey("replicate") !== null,
+  async generate(job, model, signal) {
+    const input: Record<string, unknown> = {
+      prompt: job.prompt,
+      aspect_ratio: job.aspectRatio,
+      duration: job.durationSeconds,
+    };
+    if (job.imageUrl) input.start_image = job.imageUrl;
+
+    const urls = await replicateRun(model.remoteId, input, signal, 170_000);
+    if (urls.length === 0) {
+      throw new ProviderError("replicate", null, "replicate returned no video");
+    }
+    return urls.slice(0, job.count).map((url) => ({
+      url,
+      durationSeconds: job.durationSeconds,
+      mimeType: "video/mp4",
+    }));
+  },
+};
+
 /* -------------------------------------------------------------------------
    Text providers
    ------------------------------------------------------------------------- */
@@ -827,6 +1444,10 @@ const IMAGE_PROVIDERS: readonly ImageProvider[] = [
   openRouterImage,
   googleImage,
   openAiImage,
+  falImage,
+  replicateImage,
+  huggingFaceImage,
+  imageRouterImage,
 ];
 
 const TEXT_PROVIDERS: readonly TextProvider[] = [
@@ -834,6 +1455,12 @@ const TEXT_PROVIDERS: readonly TextProvider[] = [
   googleText,
   openAiText,
   anthropicText,
+];
+
+const VIDEO_PROVIDERS: readonly VideoProvider[] = [
+  googleVideo,
+  falVideo,
+  replicateVideo,
 ];
 
 export function imageProviderFor(model: ModelSpec): ImageProvider | null {
@@ -844,8 +1471,16 @@ export function textProviderFor(model: ModelSpec): TextProvider | null {
   return TEXT_PROVIDERS.find((p) => p.id === model.provider) ?? null;
 }
 
-function providersFor(kind: ModelKind): readonly (ImageProvider | TextProvider)[] {
-  return kind === "image" ? IMAGE_PROVIDERS : TEXT_PROVIDERS;
+export function videoProviderFor(model: ModelSpec): VideoProvider | null {
+  return VIDEO_PROVIDERS.find((p) => p.id === model.provider) ?? null;
+}
+
+type AnyProvider = ImageProvider | TextProvider | VideoProvider;
+
+function providersFor(kind: ModelKind): readonly AnyProvider[] {
+  if (kind === "image") return IMAGE_PROVIDERS;
+  if (kind === "video") return VIDEO_PROVIDERS;
+  return TEXT_PROVIDERS;
 }
 
 /** Every model the product knows about, flagged with whether its key is set. */
@@ -868,6 +1503,7 @@ export function listProviderStatus(): ProviderStatus[] {
     const kinds: ModelKind[] = [];
     if (modelsFor(id, "image").length > 0) kinds.push("image");
     if (modelsFor(id, "text").length > 0) kinds.push("text");
+    if (modelsFor(id, "video").length > 0) kinds.push("video");
     return {
       id,
       label: PROVIDER_LABELS[id],
@@ -879,7 +1515,10 @@ export function listProviderStatus(): ProviderStatus[] {
 
 function costOf(model: ModelSpec): number {
   return (
-    model.approxCentsPerImage ?? model.approxCentsPerMTok ?? Number.MAX_SAFE_INTEGER
+    model.approxCentsPerImage ??
+    model.approxCentsPerMTok ??
+    model.approxCentsPerSecond ??
+    Number.MAX_SAFE_INTEGER
   );
 }
 

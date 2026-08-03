@@ -17,9 +17,10 @@ export default async function ConnectionsPage() {
       <div>
         <h1 className="font-display text-[26px] font-bold">AI providers</h1>
         <p className="mt-1 max-w-2xl text-[13.5px] text-muted">
-          Connect Claude, OpenAI, Gemini or OpenRouter with your own API keys.
-          Captions and images in the studio then run on your account and your
-          quota — pick which providers are on and the default model for each.
+          Connect your own API keys for text, image and video. Captions, visuals
+          and clips then run on your account and your quota — pick which
+          providers are on and the default model for each. Google Omni covers all
+          three with a single key.
         </p>
       </div>
 
