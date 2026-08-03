@@ -24,10 +24,9 @@ import type { PlatformId, PostFormat } from "@/lib/platforms";
 import {
   buildQueue,
   DEFAULT_SLOTS,
-  formatZonedDate,
-  formatZonedTime,
   zonedInstant,
 } from "@/lib/scheduling";
+import { persistComposedPost } from "@/app/(app)/dashboard/composer/actions";
 
 const STARTER_BODY = `The 10-minute rule that ended our bedtime war.
 
@@ -60,6 +59,7 @@ export function Composer({
   const [mode, setMode] = useState<ScheduleMode>("queue");
   const [at, setAt] = useState("");
   const [receipt, setReceipt] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   const mediaIdRef = useRef(0);
   const mediaRef = useRef<MediaItem[]>([]);
@@ -145,40 +145,79 @@ export function Composer({
     });
   }
 
-  function submit() {
-    const channels = `${targets.length} channel${targets.length === 1 ? "" : "s"}`;
+  // Read an object-URL preview back into a data: URI the server action can
+  // decode — the dropzone keeps only object URLs, not the original File.
+  async function toDataUri(url: string): Promise<string> {
+    const blob = await (await fetch(url)).blob();
+    return new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = () => reject(reader.error);
+      reader.readAsDataURL(blob);
+    });
+  }
 
+  async function submit() {
+    if (pending) return;
+    setReceipt(null);
+
+    // Resolve the schedule client-side; the action just receives an instant.
+    let scheduledAt: string | null = null;
+    let postNow = false;
     if (mode === "now") {
-      setReceipt(`Sent to ${channels}. Watch the run in Analytics.`);
-      return;
-    }
-
-    if (mode === "at") {
+      postNow = true;
+    } else if (mode === "at") {
       const match = DATETIME_PATTERN.exec(at);
       if (!match) {
         setReceipt("Pick a date and time first.");
         return;
       }
-      const when = zonedInstant(
+      scheduledAt = zonedInstant(
         Number(match[1]),
         Number(match[2]) - 1,
         Number(match[3]),
         Number(match[4]),
         Number(match[5]),
         timeZone,
-      );
-      setReceipt(
-        `Scheduled for ${formatZonedDate(when, timeZone)} at ${formatZonedTime(when, timeZone)} · ${channels}.`,
-      );
-      return;
+      ).toISOString();
+    } else {
+      const [first] = buildQueue(DEFAULT_SLOTS, now, timeZone, 1);
+      if (!first) {
+        setReceipt("Add a slot to the posting plan before queueing.");
+        return;
+      }
+      scheduledAt = first.toISOString();
     }
 
-    const [first] = buildQueue(DEFAULT_SLOTS, now, timeZone, 1);
-    setReceipt(
-      first
-        ? `Queued for ${formatZonedDate(first, timeZone)} at ${formatZonedTime(first, timeZone)} · ${channels}.`
-        : "Add a slot to the posting plan before queueing.",
-    );
+    setPending(true);
+    try {
+      const media = await Promise.all(
+        mediaRef.current.map(async (item) => ({
+          dataUri: await toDataUri(item.url),
+          kind: item.kind,
+        })),
+      );
+
+      const overridePayload: Record<string, string> = {};
+      for (const [platform, value] of Object.entries(overrides)) {
+        if (value !== undefined) overridePayload[platform] = value;
+      }
+
+      const result = await persistComposedPost({
+        body: base,
+        format,
+        platforms: targets,
+        overrides: overridePayload,
+        media,
+        scheduledAt,
+        postNow,
+      });
+      setReceipt(result.ok ? result.receipt : result.error);
+    } catch {
+      setReceipt("Something went wrong. Please try again.");
+    } finally {
+      setPending(false);
+    }
   }
 
   return (

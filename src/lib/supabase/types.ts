@@ -94,8 +94,14 @@ export interface SocialAccount {
   handle: string;
   display_name: string | null;
   avatar_url: string | null;
+  /** AES-256-GCM envelopes (see lib/publish/crypto). Never selected client-side. */
+  access_token_enc: string | null;
+  refresh_token_enc: string | null;
+  token_type: string | null;
   token_expires_at: string | null;
   scopes: string[];
+  /** Page tokens, IG user id, LinkedIn author urn, YouTube channel id, etc. */
+  provider_metadata: Record<string, unknown>;
   status: AccountStatus;
   last_error: string | null;
   connected_by: string | null;
@@ -159,6 +165,13 @@ export interface PostTarget {
   permalink: string | null;
   error: string | null;
   attempt_count: number;
+  /** When the target becomes eligible again; the cron only claims due rows. */
+  next_attempt_at: string | null;
+  /** Set when a run flips the row to 'publishing' so a second run can't double-send. */
+  locked_at: string | null;
+  last_attempt_at: string | null;
+  /** Scratch space for multi-step publishes (IG container id, TikTok publish_id). */
+  publish_state: Record<string, unknown>;
   published_at: string | null;
 }
 
@@ -273,11 +286,31 @@ export interface Database {
       profiles: Table<Profile, "created_at" | "updated_at" | "locale" | "timezone">;
       workspaces: Table<Workspace, "id" | "created_at" | "updated_at" | "timezone" | "brand_voice">;
       workspace_members: Table<WorkspaceMember, "created_at" | "role">;
-      social_accounts: Table<SocialAccount, "id" | "created_at" | "updated_at" | "status" | "scopes">;
+      social_accounts: Table<
+        SocialAccount,
+        | "id"
+        | "created_at"
+        | "updated_at"
+        | "status"
+        | "scopes"
+        | "access_token_enc"
+        | "refresh_token_enc"
+        | "token_type"
+        | "provider_metadata"
+      >;
       media_assets: Table<MediaAsset, "id" | "created_at">;
       content_categories: Table<ContentCategory, "id" | "created_at" | "color" | "recycle">;
       posts: Table<Post, "id" | "created_at" | "updated_at" | "recycle_count" | "status" | "format">;
-      post_targets: Table<PostTarget, "id" | "status" | "attempt_count">;
+      post_targets: Table<
+        PostTarget,
+        | "id"
+        | "status"
+        | "attempt_count"
+        | "next_attempt_at"
+        | "locked_at"
+        | "last_attempt_at"
+        | "publish_state"
+      >;
       schedule_slots: Table<ScheduleSlot, "id" | "created_at" | "active">;
       automations: Table<Automation, "id" | "created_at" | "updated_at" | "status" | "daily_send_cap">;
       ai_generations: Table<AiGeneration, "id" | "created_at" | "cost_cents">;

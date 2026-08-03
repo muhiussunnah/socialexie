@@ -1,19 +1,63 @@
 import type { Metadata } from "next";
-import { AlertTriangle, Plus, RefreshCw } from "lucide-react";
+import Link from "next/link";
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { AlertTriangle, Info, Plus, RefreshCw } from "lucide-react";
 import { ChannelIcon } from "@/components/channel-icon";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { demoChannels } from "@/lib/demo";
-import { PLATFORM_LIST } from "@/lib/platforms";
-import { compactNumber } from "@/lib/utils";
+import { isSupabaseConfigured } from "@/lib/env";
+import { PLATFORM_LIST, type PlatformId } from "@/lib/platforms";
+import { isPublishable } from "@/lib/publish/registry";
+import { supabaseServer } from "@/lib/supabase/server";
+import { getPrimaryWorkspaceId } from "@/lib/workspace";
 
 export const metadata: Metadata = { title: "Channels" };
 
-export default function ChannelsPage() {
-  const connectedPlatforms = new Set(demoChannels.map((c) => c.platform));
-  const available = PLATFORM_LIST.filter((p) => !connectedPlatforms.has(p.id));
-  const needsAttention = demoChannels.filter((c) => c.status === "expired");
+// Connection state is per-user and changes on connect, so never cache it.
+export const dynamic = "force-dynamic";
+
+interface AccountRow {
+  id: string;
+  platform: PlatformId;
+  handle: string;
+  display_name: string | null;
+  status: string;
+}
+
+async function loadAccounts(workspaceId: string): Promise<AccountRow[]> {
+  try {
+    const client = (await supabaseServer()) as unknown as SupabaseClient;
+    const { data } = await client
+      .from("social_accounts")
+      .select("id, platform, handle, display_name, status")
+      .eq("workspace_id", workspaceId)
+      .order("created_at", { ascending: true });
+    return (data as AccountRow[] | null) ?? [];
+  } catch {
+    return [];
+  }
+}
+
+function connectHref(platform: PlatformId, workspaceId: string): string {
+  return `/api/oauth/${platform}/authorize?workspace=${workspaceId}`;
+}
+
+export default async function ChannelsPage() {
+  const configured = isSupabaseConfigured();
+  const workspaceId = configured ? await getPrimaryWorkspaceId() : null;
+  const accounts = workspaceId ? await loadAccounts(workspaceId) : [];
+
+  const connected = new Set(accounts.map((a) => a.platform));
+  const needsAttention = accounts.filter(
+    (a) => a.status === "expired" || a.status === "error",
+  );
+
+  // Split the catalogue into what we can publish to and what's still on the way.
+  const available = PLATFORM_LIST.filter(
+    (p) => !connected.has(p.id) && isPublishable(p.id),
+  );
+  const comingSoon = PLATFORM_LIST.filter((p) => !isPublishable(p.id));
 
   return (
     <div className="mx-auto flex w-full max-w-5xl flex-col gap-5">
@@ -21,14 +65,21 @@ export default function ChannelsPage() {
         <div>
           <h1 className="font-display text-[26px] font-bold">Channels</h1>
           <p className="mt-1 text-[13.5px] text-muted">
-            {demoChannels.length} connected · {available.length} available
+            {accounts.length} connected · {available.length} available to connect
           </p>
         </div>
-        <Button size="sm">
-          <Plus />
-          Connect a channel
-        </Button>
       </div>
+
+      {!workspaceId ? (
+        <Card className="flex items-start gap-3 border-signal-line bg-signal-soft p-4">
+          <Info className="mt-0.5 size-4 shrink-0 text-signal" />
+          <p className="text-[13px] text-muted">
+            {configured
+              ? "Setting up your workspace — refresh in a moment to connect channels."
+              : "Connect Socialexie to a Supabase project to link real channels."}
+          </p>
+        </Card>
+      ) : null}
 
       {needsAttention.length > 0 ? (
         <Card className="flex items-start gap-3 border-danger-soft bg-danger-soft p-4">
@@ -44,75 +95,94 @@ export default function ChannelsPage() {
               nothing is lost.
             </p>
           </div>
-          <Button size="sm" variant="secondary">
-            <RefreshCw />
-            Reconnect
-          </Button>
         </Card>
       ) : null}
 
-      <Card className="overflow-hidden p-0">
-        <div className="border-b border-line px-5 py-4">
-          <h2 className="text-[15px] font-semibold">Connected</h2>
-        </div>
-        <ul className="divide-y divide-line">
-          {demoChannels.map((ch) => (
-            <li key={ch.id} className="flex flex-wrap items-center gap-4 px-5 py-4">
-              <ChannelIcon platform={ch.platform} size="lg" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-[14px] font-medium">{ch.handle}</p>
-                <p className="mt-0.5 font-mono text-[12px] text-subtle tabular">
-                  {compactNumber(ch.followers)} followers
-                </p>
-              </div>
+      {accounts.length > 0 ? (
+        <Card className="overflow-hidden p-0">
+          <div className="border-b border-line px-5 py-4">
+            <h2 className="text-[15px] font-semibold">Connected</h2>
+          </div>
+          <ul className="divide-y divide-line">
+            {accounts.map((account) => (
+              <li
+                key={account.id}
+                className="flex flex-wrap items-center gap-4 px-5 py-4"
+              >
+                <ChannelIcon platform={account.platform} size="lg" />
+                <div className="min-w-0 flex-1">
+                  <p className="truncate text-[14px] font-medium">
+                    {account.handle || account.display_name || account.platform}
+                  </p>
+                  <p className="mt-0.5 font-mono text-[12px] text-subtle capitalize tabular">
+                    {account.platform}
+                  </p>
+                </div>
 
-              <div className="text-right">
-                <p className="font-mono text-[13px] text-ok tabular">
-                  +{ch.growth7d}%
-                </p>
-                <p className="text-[11px] text-subtle">7 days</p>
-              </div>
+                {account.status === "active" ? (
+                  <Badge tone="ok">Active</Badge>
+                ) : (
+                  <Badge tone="danger">Reconnect needed</Badge>
+                )}
 
-              {ch.status === "expired" ? (
-                <Badge tone="danger">Token expired</Badge>
-              ) : (
-                <Badge tone="ok">Active</Badge>
-              )}
-
-              <Button variant="ghost" size="sm">
-                Manage
-              </Button>
-            </li>
-          ))}
-        </ul>
-      </Card>
+                {workspaceId ? (
+                  <Button asChild variant="ghost" size="sm">
+                    <Link href={connectHref(account.platform, workspaceId)}>
+                      <RefreshCw />
+                      Reconnect
+                    </Link>
+                  </Button>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Card>
+      ) : null}
 
       <Card className="p-5">
-        <h2 className="text-[15px] font-semibold">Add another network</h2>
+        <h2 className="text-[15px] font-semibold">
+          {accounts.length > 0 ? "Add another network" : "Connect a network"}
+        </h2>
         <p className="mt-1 text-[13px] text-muted">
-          Every connection uses the network&apos;s official API. Socialexie
-          never asks for your password.
+          Every connection uses the network&apos;s official API. Socialexie never
+          asks for your password.
         </p>
         <div className="mt-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {available.map((p) => (
-            <button
-              key={p.id}
-              type="button"
-              className="flex items-center gap-3 rounded-lg border border-line bg-surface-2 px-3.5 py-3 text-left transition-colors hover:border-signal hover:bg-surface-3"
-            >
-              <ChannelIcon platform={p.id} />
-              <span className="min-w-0 flex-1">
+          {available.map((p) =>
+            workspaceId ? (
+              <Link
+                key={p.id}
+                href={connectHref(p.id, workspaceId)}
+                className="flex items-center gap-3 rounded-lg border border-line bg-surface-2 px-3.5 py-3 text-left transition-colors hover:border-signal hover:bg-surface-3"
+              >
+                <ChannelIcon platform={p.id} />
+                <span className="min-w-0 flex-1">
+                  <span className="block truncate text-[13.5px] font-medium">
+                    {p.name}
+                  </span>
+                  <span className="block text-[11.5px] text-subtle">Connect</span>
+                </span>
+                <Plus className="size-4 shrink-0 text-subtle" />
+              </Link>
+            ) : (
+              <div
+                key={p.id}
+                className="flex items-center gap-3 rounded-lg border border-line bg-surface-2 px-3.5 py-3 opacity-60"
+              >
+                <ChannelIcon platform={p.id} />
                 <span className="block truncate text-[13.5px] font-medium">
                   {p.name}
                 </span>
-                <span className="block text-[11.5px] text-subtle">
-                  {p.formats.length} formats
-                </span>
-              </span>
-              <Plus className="size-4 shrink-0 text-subtle" />
-            </button>
-          ))}
+              </div>
+            ),
+          )}
         </div>
+
+        {comingSoon.length > 0 ? (
+          <p className="mt-4 text-[12px] text-subtle">
+            Coming soon: {comingSoon.map((p) => p.name).join(", ")}.
+          </p>
+        ) : null}
       </Card>
     </div>
   );

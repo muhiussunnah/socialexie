@@ -17,6 +17,18 @@ const serverSchema = z.object({
   SUPABASE_SERVICE_ROLE_KEY: z.string().min(20),
 });
 
+/**
+ * Secrets the real publishing pipeline needs — the AES key that opens stored
+ * OAuth tokens and the shared secret guarding the cron endpoint. Validated
+ * together and lazily, so nothing here is required until a publish actually
+ * runs; marketing and demo pages never touch it.
+ */
+const socialSchema = z.object({
+  // Base64 for 32 raw bytes (AES-256). `crypto.ts` checks the decoded length.
+  SOCIAL_TOKEN_ENC_KEY: z.string().min(1),
+  CRON_SECRET: z.string().min(1),
+});
+
 export class MissingConfigError extends Error {
   constructor(keys: string[]) {
     super(
@@ -50,6 +62,13 @@ export function publicEnv() {
 export function serverEnv() {
   return parseOrThrow(serverSchema, {
     SUPABASE_SERVICE_ROLE_KEY: process.env.SUPABASE_SERVICE_ROLE_KEY,
+  });
+}
+
+export function socialEnv() {
+  return parseOrThrow(socialSchema, {
+    SOCIAL_TOKEN_ENC_KEY: process.env.SOCIAL_TOKEN_ENC_KEY,
+    CRON_SECRET: process.env.CRON_SECRET,
   });
 }
 
