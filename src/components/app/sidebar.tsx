@@ -8,6 +8,7 @@ import {
   Images,
   LayoutGrid,
   PenSquare,
+  Plug,
   Radio,
   Settings,
   Shield,
@@ -36,6 +37,7 @@ const SECTIONS: { title: string | null; items: NavItem[] }[] = [
     title: "Create",
     items: [
       { href: "/dashboard/studio", label: "AI studio", icon: Sparkles },
+      { href: "/dashboard/connections", label: "AI providers", icon: Plug },
       { href: "/dashboard/library", label: "Library", icon: Images },
     ],
   },

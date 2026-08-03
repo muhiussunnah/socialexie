@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
+import { credentialsForUser } from "@/lib/ai/connections";
 import { generateImage, imageRequestSchema, normalizeImageRequest } from "@/lib/ai/image";
+import { runWithCredentials } from "@/lib/ai/providers";
 import { NoProviderError } from "@/lib/ai/types";
 import { getSession } from "@/lib/auth";
 import { isSupabaseConfigured } from "@/lib/env";
@@ -13,9 +15,11 @@ function fail(error: string, status: number) {
 export async function POST(request: Request) {
   // With no Supabase project attached the whole app runs on demo data, so the
   // studio has to stay reachable; once auth exists it is mandatory.
+  let userId: string | null = null;
   if (isSupabaseConfigured()) {
     const session = await getSession().catch(() => null);
     if (!session) return fail("Sign in to generate images.", 401);
+    userId = session.userId;
   }
 
   let body: unknown;
@@ -33,10 +37,16 @@ export async function POST(request: Request) {
     return fail(message, 400);
   }
 
+  // Use the workspace's own keys first when connected; fall back to the shared
+  // platform keys otherwise.
+  const credentials = userId ? await credentialsForUser(userId) : {};
+
   try {
-    const data = await generateImage(normalizeImageRequest(parsed.data), {
-      signal: request.signal,
-    });
+    const data = await runWithCredentials(credentials, () =>
+      generateImage(normalizeImageRequest(parsed.data), {
+        signal: request.signal,
+      }),
+    );
     return NextResponse.json({ ok: true, data });
   } catch (error) {
     // Upstream messages can carry key fragments and echoed prompts, so they are

@@ -242,6 +242,22 @@ export interface License {
   created_at: string;
 }
 
+export type AiConnectionStatusDb = "not_tested" | "connected" | "error";
+
+export interface AiConnection {
+  user_id: string;
+  provider: string;
+  api_key: string | null;
+  enabled: boolean;
+  default_text_model: string | null;
+  default_image_model: string | null;
+  status: AiConnectionStatusDb;
+  last_tested_at: string | null;
+  last_error: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
 /** Shape Supabase expects: every table exposes Row / Insert / Update. */
 type Table<Row, Optional extends keyof Row = never> = {
   Row: Row;
@@ -267,6 +283,18 @@ export interface Database {
       usage_counters: Table<UsageCounter, "updated_at">;
       subscriptions: Table<Subscription, "id" | "created_at" | "updated_at">;
       licenses: Table<License, "id" | "created_at">;
+      ai_connections: Table<
+        AiConnection,
+        | "created_at"
+        | "updated_at"
+        | "enabled"
+        | "status"
+        | "api_key"
+        | "default_text_model"
+        | "default_image_model"
+        | "last_tested_at"
+        | "last_error"
+      >;
     };
     Views: Record<never, never>;
     Functions: {

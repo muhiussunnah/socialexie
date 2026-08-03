@@ -1,5 +1,6 @@
 import "server-only";
 
+import { AsyncLocalStorage } from "node:async_hooks";
 import {
   NoProviderError,
   ProviderError,
@@ -37,7 +38,33 @@ const KEY_NAMES: Record<RemoteProviderId, string> = {
   anthropic: "ANTHROPIC_API_KEY",
 };
 
+/** Per-provider key overrides supplied by the signed-in workspace. */
+export type CredentialOverrides = Partial<Record<RemoteProviderId, string>>;
+
+/**
+ * Request-scoped credential context. When a caller wraps generation in
+ * `runWithCredentials`, a stored key takes precedence over the platform's
+ * environment key for that provider — so a workspace can bring its own account
+ * and spend its own quota, while a fresh clone still falls back to the shared
+ * keys (or to simulated output when neither exists).
+ */
+const credentialStore = new AsyncLocalStorage<CredentialOverrides>();
+
+export function runWithCredentials<T>(
+  overrides: CredentialOverrides,
+  run: () => Promise<T>,
+): Promise<T> {
+  return credentialStore.run(overrides, run);
+}
+
+/** True when the platform itself carries a key for this provider in the env. */
+export function hasEnvKey(provider: RemoteProviderId): boolean {
+  return Boolean(process.env[KEY_NAMES[provider]]?.trim());
+}
+
 function apiKey(provider: RemoteProviderId): string | null {
+  const override = credentialStore.getStore()?.[provider]?.trim();
+  if (override) return override;
   const raw = process.env[KEY_NAMES[provider]];
   const trimmed = raw?.trim();
   return trimmed ? trimmed : null;
@@ -442,6 +469,17 @@ const PROVIDER_LABELS: Record<RemoteProviderId, string> = {
 function modelsFor(provider: RemoteProviderId, kind: ModelKind): ModelSpec[] {
   const catalogue = kind === "image" ? IMAGE_MODELS : TEXT_MODELS;
   return catalogue.filter((model) => model.provider === provider);
+}
+
+/** The models a provider offers for a kind, as lightweight option rows. */
+export function catalogueModels(
+  provider: RemoteProviderId,
+  kind: ModelKind,
+): { id: string; label: string }[] {
+  return modelsFor(provider, kind).map((model) => ({
+    id: model.id,
+    label: model.label,
+  }));
 }
 
 /* -------------------------------------------------------------------------
