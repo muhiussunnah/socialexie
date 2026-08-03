@@ -1513,6 +1513,206 @@ export function listProviderStatus(): ProviderStatus[] {
   });
 }
 
+/* -------------------------------------------------------------------------
+   Live model discovery
+   ------------------------------------------------------------------------- */
+
+/** One selectable model row, as shown in a connection's model dropdown. */
+export interface ModelChoice {
+  id: string;
+  label: string;
+}
+
+export interface DiscoveredModels {
+  text: ModelChoice[];
+  image: ModelChoice[];
+  video: ModelChoice[];
+}
+
+const NO_MODELS: DiscoveredModels = { text: [], image: [], video: [] };
+
+/** Soft GET of a provider's model list — returns null instead of throwing. */
+async function fetchModelList(
+  url: string,
+  headers: Record<string, string>,
+): Promise<unknown | null> {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 10_000);
+  try {
+    const response = await fetch(url, {
+      headers,
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) return null;
+    return (await response.json()) as unknown;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/** Turn OpenRouter's per-token pricing into a compact "12K ctx · $x/M" suffix. */
+function priceSuffix(
+  contextLength: number | undefined,
+  promptPerToken: string | null,
+  completionPerToken: string | null,
+): string {
+  const bits: string[] = [];
+  if (contextLength && contextLength > 0) {
+    bits.push(`${Math.round(contextLength / 1000)}K ctx`);
+  }
+  const perMillionIn = promptPerToken ? Number(promptPerToken) * 1e6 : NaN;
+  const perMillionOut = completionPerToken ? Number(completionPerToken) * 1e6 : NaN;
+  if (Number.isFinite(perMillionIn) && perMillionIn > 0) {
+    bits.push(`$${perMillionIn.toFixed(2)}/M in`);
+  }
+  if (Number.isFinite(perMillionOut) && perMillionOut > 0) {
+    bits.push(`$${perMillionOut.toFixed(2)}/M out`);
+  }
+  return bits.length ? ` — ${bits.join(" · ")}` : "";
+}
+
+async function discoverOpenRouter(key: string): Promise<DiscoveredModels> {
+  const payload = await fetchModelList("https://openrouter.ai/api/v1/models", {
+    authorization: `Bearer ${key}`,
+  });
+  const text: ModelChoice[] = [];
+  const image: ModelChoice[] = [];
+
+  for (const row of asArray(dig(payload, "data"))) {
+    const id = asString(dig(row, "id"));
+    if (!id) continue;
+    const name = asString(dig(row, "name")) ?? id;
+    const context = Number(dig(row, "context_length")) || undefined;
+    const outputs = asArray(dig(row, "architecture", "output_modalities")).filter(
+      (value): value is string => typeof value === "string",
+    );
+    const label =
+      name +
+      priceSuffix(
+        context,
+        asString(dig(row, "pricing", "prompt")),
+        asString(dig(row, "pricing", "completion")),
+      );
+    const choice = { id: `openrouter@${id}`, label };
+    if (outputs.includes("image")) image.push(choice);
+    else text.push(choice);
+  }
+
+  return { text: sortChoices(text), image: sortChoices(image), video: [] };
+}
+
+async function discoverOpenAi(key: string): Promise<DiscoveredModels> {
+  const payload = await fetchModelList("https://api.openai.com/v1/models", {
+    authorization: `Bearer ${key}`,
+  });
+  const text: ModelChoice[] = [];
+  const image: ModelChoice[] = [];
+
+  for (const row of asArray(dig(payload, "data"))) {
+    const id = asString(dig(row, "id"));
+    if (!id) continue;
+    if (/embedding|whisper|tts|audio|moderation|realtime|transcribe|search/i.test(id)) {
+      continue;
+    }
+    if (/image|dall-e/i.test(id)) {
+      image.push({ id: `openai@${id}`, label: id });
+      continue;
+    }
+    if (/^(gpt-|o1|o3|o4|chatgpt)/i.test(id)) {
+      text.push({ id: `openai@${id}`, label: id });
+    }
+  }
+
+  return { text: sortChoices(text), image: sortChoices(image), video: [] };
+}
+
+async function discoverGoogle(key: string): Promise<DiscoveredModels> {
+  const payload = await fetchModelList(
+    "https://generativelanguage.googleapis.com/v1beta/models?pageSize=1000",
+    { "x-goog-api-key": key },
+  );
+  const text: ModelChoice[] = [];
+  const image: ModelChoice[] = [];
+  const video: ModelChoice[] = [];
+
+  for (const row of asArray(dig(payload, "models"))) {
+    const name = asString(dig(row, "name"));
+    if (!name) continue;
+    const remoteId = name.replace(/^models\//, "");
+    const methods = asArray(dig(row, "supportedGenerationMethods")).filter(
+      (value): value is string => typeof value === "string",
+    );
+    const label = asString(dig(row, "displayName")) ?? remoteId;
+    const choice = { id: `google@${remoteId}`, label };
+
+    if (/veo/i.test(remoteId)) video.push(choice);
+    else if (/imagen/i.test(remoteId) || /image/i.test(remoteId)) image.push(choice);
+    else if (methods.includes("generateContent") && /gemini/i.test(remoteId) && !/embedding/i.test(remoteId)) {
+      text.push(choice);
+    }
+  }
+
+  return {
+    text: sortChoices(text),
+    image: sortChoices(image),
+    video: sortChoices(video),
+  };
+}
+
+async function discoverAnthropic(key: string): Promise<DiscoveredModels> {
+  const payload = await fetchModelList("https://api.anthropic.com/v1/models", {
+    "x-api-key": key,
+    "anthropic-version": "2023-06-01",
+  });
+  const text: ModelChoice[] = [];
+
+  for (const row of asArray(dig(payload, "data"))) {
+    const id = asString(dig(row, "id"));
+    if (!id) continue;
+    text.push({ id: `anthropic@${id}`, label: asString(dig(row, "display_name")) ?? id });
+  }
+
+  return { text, image: [], video: [] };
+}
+
+function sortChoices(choices: ModelChoice[]): ModelChoice[] {
+  return [...choices].sort((a, b) => a.label.localeCompare(b.label));
+}
+
+/** Which providers expose a usable "list my models" endpoint. */
+export function isDiscoverable(provider: RemoteProviderId): boolean {
+  return (
+    provider === "openrouter" ||
+    provider === "openai" ||
+    provider === "google" ||
+    provider === "anthropic"
+  );
+}
+
+/**
+ * Pull a provider's live catalogue with the workspace's own key, so the model
+ * dropdowns show everything the account can actually reach — not just the
+ * curated defaults. Any failure degrades to an empty result, and the caller
+ * keeps the static catalogue.
+ */
+export async function discoverModels(
+  provider: RemoteProviderId,
+  key: string,
+): Promise<DiscoveredModels> {
+  try {
+    if (provider === "openrouter") return await discoverOpenRouter(key);
+    if (provider === "openai") return await discoverOpenAi(key);
+    if (provider === "google") return await discoverGoogle(key);
+    if (provider === "anthropic") return await discoverAnthropic(key);
+  } catch {
+    // fall through to the empty result
+  }
+  return NO_MODELS;
+}
+
 function costOf(model: ModelSpec): number {
   return (
     model.approxCentsPerImage ??
@@ -1522,14 +1722,53 @@ function costOf(model: ModelSpec): number {
   );
 }
 
+const REMOTE_IDS = new Set<string>(Object.keys(KEY_NAMES));
+
 /**
- * Pick the model to run. An unknown or unconfigured request falls back to the
- * cheapest thing that is actually wired up rather than failing the call.
+ * A model chosen from a provider's *live* catalogue rather than the curated
+ * one. The dropdown encodes such a pick as `provider@remoteId`, which we turn
+ * into an on-the-fly spec so any model the provider offers is routable — this
+ * is what lets a connected OpenRouter key drive its full model list, not just
+ * the handful we ship by default.
+ */
+function ephemeralModel(kind: ModelKind, requestedId: string): ModelSpec | null {
+  const at = requestedId.indexOf("@");
+  if (at <= 0) return null;
+
+  const provider = requestedId.slice(0, at);
+  const remoteId = requestedId.slice(at + 1);
+  if (!REMOTE_IDS.has(provider) || !remoteId) return null;
+
+  const id = provider as RemoteProviderId;
+  const serves = providersFor(kind).some(
+    (candidate) => candidate.id === id && candidate.isConfigured(),
+  );
+  if (!serves) return null;
+
+  return {
+    id: requestedId,
+    label: remoteId,
+    provider: id,
+    kind,
+    remoteId,
+    capabilities: [],
+  };
+}
+
+/**
+ * Pick the model to run. A live catalogue pick (`provider@remoteId`) is honoured
+ * directly; otherwise an unknown or unconfigured request falls back to the
+ * cheapest curated model that is actually wired up rather than failing the call.
  */
 export function resolveModel(
   kind: ModelKind,
   requestedId?: string,
 ): ModelSpec | null {
+  if (requestedId) {
+    const live = ephemeralModel(kind, requestedId);
+    if (live) return live;
+  }
+
   const available = listAvailableModels(kind);
   if (available.length === 0) return null;
 

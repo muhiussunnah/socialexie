@@ -3,8 +3,11 @@ import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import {
   catalogueModels,
+  discoverModels,
   hasEnvKey,
+  isDiscoverable,
   type CredentialOverrides,
+  type DiscoveredModels,
 } from "@/lib/ai/providers";
 import type { RemoteProviderId } from "@/lib/ai/types";
 import { getSession } from "@/lib/auth";
@@ -213,6 +216,29 @@ function buildView(meta: ProviderMeta, row: ConnectionRow | undefined): Connecti
   };
 }
 
+/**
+ * A provider's live model catalogue is essentially the same for every account,
+ * so it is cached process-wide for a short window rather than re-fetched on
+ * every page view. Only non-empty results are cached, so a transient failure
+ * retries next time instead of pinning the dropdowns to the static list.
+ */
+const LIVE_TTL_MS = 10 * 60_000;
+const liveModelCache = new Map<string, { at: number; data: DiscoveredModels }>();
+
+async function liveModelsFor(
+  provider: RemoteProviderId,
+  key: string,
+): Promise<DiscoveredModels> {
+  const hit = liveModelCache.get(provider);
+  if (hit && Date.now() - hit.at < LIVE_TTL_MS) return hit.data;
+
+  const data = await discoverModels(provider, key);
+  if (data.text.length || data.image.length || data.video.length) {
+    liveModelCache.set(provider, { at: Date.now(), data });
+  }
+  return data;
+}
+
 /** Every provider's connection state for the signed-in user. */
 export async function getConnections(): Promise<ConnectionView[]> {
   let rows = new Map<string, ConnectionRow>();
@@ -226,7 +252,27 @@ export async function getConnections(): Promise<ConnectionView[]> {
     }
   }
 
-  return PROVIDER_CATALOGUE.map((meta) => buildView(meta, rows.get(meta.id)));
+  const views = PROVIDER_CATALOGUE.map((meta) => buildView(meta, rows.get(meta.id)));
+
+  // For connected providers that publish a model list, replace the curated
+  // dropdown with the account's full live catalogue — in parallel, and only
+  // overriding a kind when the fetch actually returned models for it.
+  await Promise.all(
+    views.map(async (view) => {
+      const key = rows.get(view.id)?.api_key?.trim();
+      if (!key || !isDiscoverable(view.id)) return;
+      try {
+        const live = await liveModelsFor(view.id, key);
+        if (view.kinds.includes("text") && live.text.length) view.textModels = live.text;
+        if (view.kinds.includes("image") && live.image.length) view.imageModels = live.image;
+        if (view.kinds.includes("video") && live.video.length) view.videoModels = live.video;
+      } catch {
+        // Keep the static catalogue on any failure.
+      }
+    }),
+  );
+
+  return views;
 }
 
 /**
