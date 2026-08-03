@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" xmlns="http://www.w3.org/1999/xhtml" xmlns:v="urn:schemas-microsoft-com:vml" xmlns:o="urn:schemas-microsoft-com:office:office">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+  <meta name="color-scheme" content="light" />
+  <meta name="supported-color-schemes" content="light" />
+  <title>Confirm your email</title>
+  <!--[if mso]><style>.fallback-font{font-family:Arial,sans-serif !important;}</style><![endif]-->
+</head>
+<body style="margin:0;padding:0;background-color:#f2f0ec;">
+  <div style="display:none;max-height:0;overflow:hidden;opacity:0;color:#f2f0ec;font-size:1px;line-height:1px;">
+    One tap to confirm your email and unlock your Socialexie control room.
+  </div>
+
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background-color:#f2f0ec;">
+    <tr>
+      <td align="center" style="padding:40px 16px;">
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="width:480px;max-width:480px;background-color:#ffffff;border:1px solid #e4e0d9;border-radius:16px;">
+          <tr>
+            <td style="padding:36px 40px 0 40px;" class="fallback-font">
+              <!-- Brand -->
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td style="vertical-align:middle;">
+                    <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                      <tr>
+                        <td width="38" height="38" align="center" valign="middle" bgcolor="#b8730a" style="width:38px;height:38px;border-radius:11px;color:#ffffff;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:20px;font-weight:700;line-height:38px;text-align:center;">S</td>
+                        <td style="padding-left:11px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:17px;font-weight:700;letter-spacing:-0.02em;color:#14161a;">Socialexie</td>
+                      </tr>
+                    </table>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 40px 0 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;" class="fallback-font">
+              <h1 style="margin:0;font-size:23px;line-height:1.25;font-weight:700;letter-spacing:-0.02em;color:#14161a;">Confirm your email</h1>
+              <p style="margin:12px 0 0 0;font-size:15px;line-height:1.65;color:#6b6760;">
+                Welcome to Socialexie. Confirm this address and your control room —
+                every network, one queue — is ready to go.
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td align="center" style="padding:28px 40px 4px 40px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0">
+                <tr>
+                  <td align="center" bgcolor="#b8730a" style="border-radius:10px;">
+                    <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard" style="display:inline-block;padding:14px 32px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:15px;font-weight:600;line-height:1;color:#ffffff;text-decoration:none;border-radius:10px;">Confirm email &rarr;</a>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:20px 40px 0 40px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;" class="fallback-font">
+              <p style="margin:0;font-size:12.5px;line-height:1.6;color:#918b82;">
+                Button not working? Paste this link into your browser:
+              </p>
+              <p style="margin:6px 0 0 0;font-size:12.5px;line-height:1.6;word-break:break-all;">
+                <a href="{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email&next=/dashboard" style="color:#b8730a;text-decoration:none;">{{ .SiteURL }}/auth/confirm?token_hash={{ .TokenHash }}&type=email</a>
+              </p>
+            </td>
+          </tr>
+
+          <tr>
+            <td style="padding:28px 40px 36px 40px;" class="fallback-font">
+              <div style="border-top:1px solid #e4e0d9;padding-top:20px;">
+                <p style="margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;font-size:12.5px;line-height:1.6;color:#918b82;">
+                  This link expires in an hour and can be used once. If you didn&rsquo;t
+                  create a Socialexie account, you can safely ignore this email.
+                </p>
+              </div>
+            </td>
+          </tr>
+        </table>
+
+        <table role="presentation" width="480" cellpadding="0" cellspacing="0" border="0" style="width:480px;max-width:480px;">
+          <tr>
+            <td align="center" style="padding:22px 20px;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;">
+              <p style="margin:0;font-size:12px;line-height:1.6;color:#918b82;">
+                <strong style="color:#6b6760;">Socialexie</strong> &middot; The control room for social growth.
+              </p>
+              <p style="margin:4px 0 0 0;font-size:12px;line-height:1.6;color:#b3ada3;">
+                &copy; 2026 Socialexie &middot; <a href="{{ .SiteURL }}" style="color:#b3ada3;text-decoration:none;">socialexi.app</a>
+              </p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>

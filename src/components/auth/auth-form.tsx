@@ -29,7 +29,17 @@ export function AuthForm({ mode }: { mode: Mode }) {
   const params = useSearchParams();
   const [pending, startTransition] = useTransition();
   const [busy, setBusy] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(() => {
+    // A bounced auth link (expired token, failed exchange) lands back here.
+    switch (params.get("error")) {
+      case "link-expired":
+        return "That link has expired or was already used. Sign in below, or request a new one.";
+      case "auth":
+        return "We couldn't finish signing you in. Please try again.";
+      default:
+        return null;
+    }
+  });
   const [notice, setNotice] = useState<string | null>(null);
 
   const needsSetup = params.get("setup") === "1";
@@ -55,7 +65,7 @@ export function AuthForm({ mode }: { mode: Mode }) {
           password,
           options: {
             data: { full_name: fullName || null },
-            emailRedirectTo: `${window.location.origin}/dashboard`,
+            emailRedirectTo: `${window.location.origin}/auth/confirm?next=/dashboard`,
           },
         });
         if (signUpError) throw signUpError;
@@ -143,6 +153,15 @@ export function AuthForm({ mode }: { mode: Mode }) {
             placeholder="••••••••"
           />
         </Field>
+
+        {mode === "login" ? (
+          <Link
+            href="/forgot-password"
+            className="-mt-1.5 w-fit self-end text-[12.5px] font-medium text-signal underline-offset-2 hover:underline"
+          >
+            Forgot password?
+          </Link>
+        ) : null}
 
         {error ? (
           <p role="alert" className="text-[13px] text-danger">
