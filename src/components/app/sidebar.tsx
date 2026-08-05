@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import {
   BarChart3,
   CalendarDays,
+  Flame,
   Images,
   LayoutGrid,
   PenSquare,
@@ -44,6 +45,7 @@ const SECTIONS: { title: string | null; items: NavItem[] }[] = [
   {
     title: "Grow",
     items: [
+      { href: "/dashboard/viral-finder", label: "Viral finder", icon: Flame },
       { href: "/dashboard/automations", label: "Automations", icon: Zap },
       { href: "/dashboard/analytics", label: "Analytics", icon: BarChart3 },
       { href: "/dashboard/channels", label: "Channels", icon: Radio },
