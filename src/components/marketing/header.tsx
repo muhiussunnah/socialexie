@@ -3,9 +3,22 @@ import { AnnouncementBar } from "@/components/marketing/announcement-bar";
 import { Logo } from "@/components/brand/logo";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
+import { getSession } from "@/lib/auth";
 import { marketingNav } from "@/lib/site";
+import { initials } from "@/lib/utils";
 
-export function MarketingHeader() {
+/** Session is best-effort here — a marketing page must render signed out too. */
+async function currentUser() {
+  try {
+    return await getSession();
+  } catch {
+    return null;
+  }
+}
+
+export async function MarketingHeader() {
+  const session = await currentUser();
+
   return (
     <>
       {/* Outside the sticky element on purpose — the promo scrolls away, the nav
@@ -44,12 +57,30 @@ export function MarketingHeader() {
 
           <div className="flex shrink-0 items-center gap-2">
             <ThemeToggle />
-            <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
-              <Link href="/login">Sign in</Link>
-            </Button>
-            <Button asChild size="sm">
-              <Link href="/signup">Start free</Link>
-            </Button>
+            {session ? (
+              <>
+                <Button asChild size="sm">
+                  <Link href="/dashboard">Dashboard</Link>
+                </Button>
+                <Link
+                  href="/dashboard/settings"
+                  title={`${session.email} — account`}
+                  aria-label="Account"
+                  className="grid size-9 shrink-0 place-items-center rounded-full border border-line bg-surface-2 text-[12px] font-semibold text-muted transition-colors hover:border-line-strong hover:text-fg"
+                >
+                  {initials(session.email.split("@")[0])}
+                </Link>
+              </>
+            ) : (
+              <>
+                <Button asChild variant="ghost" size="sm" className="hidden sm:inline-flex">
+                  <Link href="/login">Sign in</Link>
+                </Button>
+                <Button asChild size="sm">
+                  <Link href="/signup">Start free</Link>
+                </Button>
+              </>
+            )}
           </div>
         </div>
 
