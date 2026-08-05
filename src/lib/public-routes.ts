@@ -56,6 +56,51 @@ export const PUBLIC_ROUTES: readonly PublicRoute[] = [
     updated: UPDATED,
   },
   {
+    path: "/tools",
+    title: "Free creator tools — repurpose your own videos",
+    summary:
+      "Free tools to turn one video you made into a week of native posts across every network.",
+    priority: 0.8,
+    changeFrequency: "monthly",
+    updated: "2026-08-05",
+  },
+  {
+    path: "/tools/tiktok-video-repurposer",
+    title: "TikTok video repurposer",
+    summary:
+      "Turn one TikTok you made into native posts for every other network, with a free caption generator.",
+    priority: 0.8,
+    changeFrequency: "monthly",
+    updated: "2026-08-05",
+  },
+  {
+    path: "/tools/instagram-video-repurposer",
+    title: "Instagram Reels repurposer",
+    summary:
+      "Reshape your own Instagram Reels for every network and reschedule them, with a free caption generator.",
+    priority: 0.8,
+    changeFrequency: "monthly",
+    updated: "2026-08-05",
+  },
+  {
+    path: "/tools/youtube-video-repurposer",
+    title: "YouTube video repurposer",
+    summary:
+      "Cut your own YouTube videos into Shorts and clips for every network, with a free title and caption generator.",
+    priority: 0.8,
+    changeFrequency: "monthly",
+    updated: "2026-08-05",
+  },
+  {
+    path: "/tools/facebook-video-repurposer",
+    title: "Facebook video repurposer",
+    summary:
+      "Repurpose your own Facebook videos and Reels across every network, with a free caption generator.",
+    priority: 0.8,
+    changeFrequency: "monthly",
+    updated: "2026-08-05",
+  },
+  {
     path: "/contact",
     title: "Contact",
     summary:

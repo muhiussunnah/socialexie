@@ -15,6 +15,16 @@ const COLUMNS = [
     ],
   },
   {
+    title: "Free tools",
+    links: [
+      { href: "/tools/tiktok-video-repurposer", label: "TikTok repurposer" },
+      { href: "/tools/instagram-video-repurposer", label: "Instagram repurposer" },
+      { href: "/tools/youtube-video-repurposer", label: "YouTube repurposer" },
+      { href: "/tools/facebook-video-repurposer", label: "Facebook repurposer" },
+      { href: "/tools", label: "All free tools" },
+    ],
+  },
+  {
     title: "Company",
     links: [
       { href: "/about", label: "About" },
@@ -44,7 +54,7 @@ const COLUMNS = [
 export function MarketingFooter() {
   return (
     <footer className="mt-auto border-t border-line bg-bg-sub">
-      <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(4,1fr)]">
+      <div className="mx-auto grid w-full max-w-6xl gap-10 px-5 py-14 md:grid-cols-2 lg:grid-cols-[1.4fr_repeat(5,1fr)]">
         <div>
           <Logo />
           <p className="mt-3 max-w-xs text-[13px] leading-relaxed text-muted">
