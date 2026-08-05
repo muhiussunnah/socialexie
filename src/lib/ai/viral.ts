@@ -70,17 +70,27 @@ function buildJob(platformName: string, niche: string): TextJob {
   };
 }
 
+/** Strip the JSON scaffolding a model sometimes leaks into a field. */
+function clean(value: string | undefined): string {
+  return (value ?? "")
+    .replace(/\\"/g, '"')
+    .replace(/\\n/g, " ")
+    .replace(/^[\s\[\]"',]+/, "")
+    .replace(/[\s\[\]"',\\]+$/, "")
+    .trim();
+}
+
 /** Split the delimited model output into structured cards; drop malformed rows. */
 function parseIdeas(variants: TextVariant[]): ViralIdea[] {
   return variants
-    .map((variant) => variant.text.split(DELIM).map((part) => part.trim()))
-    .filter((parts) => parts[0])
+    .map((variant) => variant.text.split(DELIM).map(clean))
+    .filter((parts) => parts[0] && parts[0].length > 3)
     .map((parts) => ({
-      hook: parts[0] ?? "",
-      format: parts[1] ?? "Reel",
-      signal: parts[2] ?? "Saves",
-      effort: parts[3] ?? "Medium",
-      why: parts[4] ?? "",
+      hook: parts[0],
+      format: parts[1] || "Reel",
+      signal: parts[2] || "Saves",
+      effort: parts[3] || "Medium",
+      why: parts[4] || "",
     }));
 }
 
