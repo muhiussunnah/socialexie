@@ -43,6 +43,9 @@ export const metadata: Metadata = {
     types: { "application/atom+xml": "/feed.xml" },
   },
   manifest: "/manifest.webmanifest",
+  // Static assets in /public — generated once so the runtime never bundles the
+  // heavy on-the-fly image renderer.
+  icons: { icon: "/icon.svg", apple: "/apple-icon.png" },
   appleWebApp: {
     capable: true,
     title: site.name,
@@ -54,11 +57,13 @@ export const metadata: Metadata = {
     siteName: site.name,
     title: `${site.name} — ${site.tagline}`,
     description: site.description,
+    images: ["/opengraph-image.png"],
   },
   twitter: {
     card: "summary_large_image",
     title: `${site.name} — ${site.tagline}`,
     description: site.description,
+    images: ["/opengraph-image.png"],
   },
   robots: {
     index: true,
